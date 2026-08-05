@@ -1,28 +1,37 @@
 # Unity Catalog ガバナンス ハンズオン
 
-Databricks **Unity Catalog** のデータガバナンス機能と **Lakehouse Federation** を、
-手を動かしながら学ぶハンズオン用デモです。製造業（設備保全・品質管理）の汎用シナリオを題材にしています。
+Databricks **Unity Catalog** のデータガバナンス機能を、手を動かしながら学ぶハンズオン教材です。
+Databricks 標準サンプル `samples.tpch`（部品調達・受注データ）を題材に、
+**追加のクラウドリソースなし**で一通り体験できます。
 
-デモは 2 構成に分かれています。
+## 👉 参加者向けの手順は [HANDSON.md](./HANDSON.md) へ
 
-| 構成 | ディレクトリ | 内容 | 前提リソース |
-|---|---|---|---|
-| **なし版**（UC ガバナンス単体） | `notebooks/core/` | カタログ作成 → アクセス制御（**ABAC**） → リネージ → データ探索 → Delta Sharing → 監査ログ → Genie | Databricks workspace のみ（`samples.tpch` を利用） |
-| **あり版**（Lakehouse Federation） | `notebooks/federation/` | AWS Glue（Catalog Federation）+ Amazon Redshift（Query Federation）を UC 傘下で統合 | AWS（`terraform/` で構築） |
+| | 内容 |
+|---|---|
+| **対象** | `notebooks/core/`（00〜08） |
+| **所要** | 1〜2時間 |
+| **前提** | Databricks workspace（Unity Catalog 有効）+ Serverless SQL Warehouse のみ |
+| **進め方** | **画面操作（UI）中心**。各ノートブックを実行 → Catalog Explorer で結果を確認 |
+| **複数人** | スキーマが**参加者ごとに自動で分かれる**ので、同じワークスペースで同時実施できる |
 
-> **ストーリー**: なし版で「UC の中に閉じた世界」でガバナンスを体験 → あり版で「現実には Glue / Redshift にデータが散在」→ Federation で移動なしに UC 傘下に取り込み、**同じ GRANT / リネージ / Genie がそのまま効く**（ガバナンスの一貫性）ことを見せます。
+カバーする機能:
 
-すべての実行と UI 操作手順は各 notebook 内（`%sql` セル / `%md` セル）に含まれています。
+1. メタデータ設計（COMMENT / タグ / 主キー・外部キー、**AI 生成コメント**）
+2. アクセス制御 — 階層的 GRANT、管理タグ、**Tag Policies（許可値の統制）**、
+   **ABAC**（タグ駆動の行フィルタ・列マスクポリシー）
+3. データリネージ（テーブル / 列レベル）
+4. データ探索（検索・タグ・Certified・Insights）
+5. 組織間データ共有（Delta Sharing D2D / D2O）
+6. 監査ログ（`system.access.audit`）
+7. AI/BI Genie（自然言語でのデータ活用）
+
+すべての実行手順と UI 操作手順は、各 notebook 内（`%md` セル）に含まれています。
 
 ---
 
-## シナリオ
+## シナリオ — 部品調達・受注（`samples.tpch`）
 
-構築を簡易にするため、**なし版**と**あり版**でソースを分けています（各版は単体で完結）。
-
-### なし版 — 部品調達・受注（`samples.tpch`）
-
-Databricks 標準サンプル `samples.tpch` を自スキーマに取り込んで利用（合成データ生成は不要）。
+Databricks 標準サンプル `samples.tpch` を自分のスキーマに取り込んで利用します（データ生成は不要）。
 
 | 論理領域 | テーブル |
 |---|---|
@@ -30,11 +39,26 @@ Databricks 標準サンプル `samples.tpch` を自スキーマに取り込ん�
 | トランザクション | `orders` / `lineitem`（受注 5,000 件のサブセット） |
 | 分析結果 | `order_analysis_summary`（JOIN で作成） |
 
-ペルソナ: `data_governance_admins` / `procurement_team` / `sales_analysts` / `executives`
+アクセス制御で使うペルソナ（グループ）: `data_governance_admins` / `sales_automobile` /
+`sales_building` / `sales_machinery`
 
-### あり版 — 製造業（設備保全・工場データ、`terraform/` で構築）
+> グループが未作成でも進められます。その場合、実行者は「マスク・フィルタが**効く側**」として
+> ABAC の動作を観察できます（詳細は `03_access_control` 内の説明を参照）。
 
-架空の精密機器メーカー。`machine_id` を共通キーに、Glue（マスタ）と Redshift（トランザクション）に散在。
+---
+
+## 📎 参考実装（ハンズオン対象外）— Lakehouse Federation
+
+`notebooks/federation/` と `terraform/` には、**Lakehouse Federation** の実装例が入っています。
+AWS Glue（Catalog Federation）と Amazon Redshift（Query Federation）を Unity Catalog 傘下に取り込み、
+**同じ GRANT / リネージ / Genie がそのまま効く**ことを示すものです。
+
+> ⚠️ **ハンズオンでは実施しません**。AWS 側のリソース構築（Glue / Redshift / IAM / ネットワーク）が
+> 必要で、環境準備に時間とコストがかかるためです。
+> ハンズオンでは Federation は**コンセプトの説明**にとどめ、動作は別途デモでご覧いただく想定です。
+>
+> 自分の AWS 環境で試したい場合の手順は下記「参考: Federation 環境の構築」を参照してください
+> （動作検証済みですが、`terraform apply` は実際の AWS 課金が発生します）。
 
 | 論理領域 | テーブル | 置き場所 |
 |---|---|---|
@@ -61,30 +85,49 @@ Databricks 標準サンプル `samples.tpch` を自スキーマに取り込ん�
 databricks auth login --host https://<your-workspace>.cloud.databricks.com
 ```
 
-### 2. なし版（Terraform 不要）
+### 2. カタログ名を設定する（講師側、1 箇所だけ）
+
+`notebooks/core/_config.py` の `DEFAULT_CATALOG` を、使用するワークスペースの
+既存カタログ名に書き換えます。**参加者が編集する必要はありません**。
+
+```python
+DEFAULT_CATALOG = "<your_catalog>"
+```
+
+スキーマは `_config` が**ログインユーザー名から自動生成**します（例 `uc_handson_taro_yamada`）。
+これにより複数人が同じワークスペースで同時に作業しても衝突しません。
+
+参加者に必要なカタログ権限（管理者が事前に付与）:
+
+```sql
+GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <your_catalog> TO `account users`;
+```
+
+> ⚠️ Unity Catalog の principal は `account users` です。ワークスペースローカルの
+> `users` グループを指定すると `PRINCIPAL_DOES_NOT_EXIST` になります。
+
+### 3. ハンズオンの進め方（参加者）
+
+参加者は **Git folder としてこのリポジトリを取り込み**、`notebooks/core/` の
+`00_setup` から `08_genie` までを順に実行します。詳細は [HANDSON.md](./HANDSON.md)。
+
+### （任意）講師が事前に動作確認する場合
 
 ```bash
-# バリデーション
 databricks bundle validate -t dev
 
-# デプロイ（notebook / job を配置）
 databricks bundle deploy -t dev \
   --var catalog=<your_catalog> \
-  --var schema=uc_handson \
   --var warehouse_id=<your_warehouse_id> \
   --auto-approve
 
-# 初期化ジョブ（schema/volume 作成 → samples.tpch 取り込み → カタログ整備）を実行
+# 初期化ジョブ（実行した人のスキーマに対して 00→01→02 を実行）
 databricks bundle run uc-handson-core-init -t dev \
-  --var catalog=<your_catalog> --var schema=uc_handson --var warehouse_id=<your_warehouse_id>
+  --var catalog=<your_catalog> --var warehouse_id=<your_warehouse_id>
 ```
 
-以降、`notebooks/core/03_access_control.py` 〜 `08_genie.py` を Databricks UI 上で
-1 つずつインタラクティブに実行します（`HANDSON.md` の進行に沿って）。
-
-> **03〜08 の catalog/schema 設定**: 各ノートブックは冒頭で `%run ./_config` を実行します。
-> 環境が違う場合は **`notebooks/core/_config.py` の `DEFAULT_CATALOG` / `DEFAULT_SCHEMA` の 2 行だけ**
-> 書き換えれば、03〜08 はそのまま Run できます（schema / volume は `00_setup.py` が作成）。
+> このジョブは `schema` を渡しません（`_config` のユーザー別自動判定に任せるため）。
+> ハンズオン本番では参加者が UI から 00→01→02 を順に実行するのが基本です。
 
 #### アクセス制御デモ（03）は ABAC ポリシーベース
 
@@ -110,11 +153,18 @@ done
 - 使用する管理タグ（デモ専用キー。アカウント内で衝突しないよう prefix 付き）:
   `uc_handson_pii`（列マスク対象）/ `uc_handson_segment`（行フィルタ判定列）
 - ⚠️ **03 の末尾で必ずポリシーとタグを解除**します（付けたまま 04 に進むと `customer` が
-  0 行/NULL に見え、04 の JOIN 結果が空になるため）。ノートブックの「7. 後片付け」セルが自動実行します。
+  0 行/NULL に見え、04 の JOIN 結果が空になるため）。ノートブックの「8. 後片付け」セルが自動実行します。
 - ⚠️ グループメンバーシップやタグが SQL エンジンに反映されるまで**数分**かかることがあります。
 - ABAC には **Governed Tag が必須**（通常タグ不可）。`CREATE GOVERNED TAG` は `IF NOT EXISTS` 非対応。
+- 管理タグは**アカウント全体で共有**されるため、複数人で実施すると 2 人目以降は
+  「既に存在します」と表示されます（正常。タグは共有し、ポリシーは各自のスキーマに張られます）。
 
-### 3. あり版（AWS Federation）
+---
+
+## 参考: Federation 環境の構築（ハンズオン対象外）
+
+⚠️ この節は**ハンズオンでは実施しません**。自分の AWS 環境で試す場合のみ参照してください。
+`terraform apply` は実際の AWS 課金が発生します（Glue / Redshift Serverless / S3 / VPC / IAM）。
 
 ```bash
 cd terraform
@@ -138,11 +188,14 @@ databricks bundle run uc-handson-federation-demo -t dev \
 ## クリーンアップ
 
 ```bash
-# あり版の AWS リソース
-cd terraform && terraform destroy
-
-# bundle
+# bundle（notebook / job を削除）
 databricks bundle destroy -t dev
+
+# 参加者が作ったスキーマを消す場合（SQL）
+#   DROP SCHEMA IF EXISTS <catalog>.uc_handson_<user> CASCADE;
+
+# 参考実装の Federation を試した場合のみ
+cd terraform && terraform destroy
 ```
 
 ---
@@ -151,12 +204,12 @@ databricks bundle destroy -t dev
 
 ```
 uc-governance-handson/
+├── HANDSON.md                # ⭐ 参加者向けの進行ガイド
 ├── databricks.yml            # DAB 定義
-├── resources/                # DAB リソース（schema/volume, jobs）
-├── notebooks/core/           # なし版（00_setup 〜 08_genie）
-├── notebooks/federation/     # あり版（00_prereq_env 〜 05_genie_federation）
-├── terraform/                # あり版の環境構築（Glue + Redshift のみ）
-├── scripts/                  # 合成データ生成の共通ロジック
+├── resources/                # DAB リソース（jobs）
+├── notebooks/core/           # ⭐ ハンズオン本体（_config, 00_setup 〜 08_genie）
+├── notebooks/federation/     # 参考実装（ハンズオン対象外）
+├── terraform/                # 参考実装の環境構築（ハンズオン対象外）
 └── docs/architecture.md      # アーキテクチャ図
 ```
 

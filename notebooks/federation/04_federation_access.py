@@ -1,5 +1,16 @@
 # Databricks notebook source
 # MAGIC %md
+# MAGIC > ## 📎 参考実装 — ハンズオン対象外
+# MAGIC >
+# MAGIC > このノートブックは **Lakehouse Federation** の参考実装です。
+# MAGIC > **ハンズオンでは実行しません**（AWS 側のリソース構築が前提で、環境準備に時間とコストがかかるため）。
+# MAGIC > ハンズオンで手を動かすのは `notebooks/core/` の 00〜08 です。
+# MAGIC >
+# MAGIC > 自分の AWS 環境で試す場合は、先に `terraform/` で環境を構築してください。
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC # 04 — Federation カタログへのアクセス制御
 # MAGIC
 # MAGIC **ポイント**: なし版（`core/03_access_control`）で学んだ UC のアクセス制御モデルは、
