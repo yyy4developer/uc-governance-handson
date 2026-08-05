@@ -63,4 +63,9 @@ display(spark.sql(f"SHOW SCHEMAS IN {catalog} LIKE '{schema}'"))
 # MAGIC 3. **Volumes** に `raw` があることを確認
 # MAGIC 4. スキーマの **Details** タブで COMMENT が表示されることを確認
 # MAGIC
+# MAGIC 💡 **いま作ったものは「入れ物（メタデータ）」です**。
+# MAGIC カタログ・スキーマ・Volume はいずれも Unity Catalog が管理する**論理的な構造**で、
+# MAGIC この時点ではまだ実データは 1 行もありません。
+# MAGIC 次の `01_ingest_data` でデータを入れたあと、**実データが物理的にどこに置かれるのか**を確認します。
+# MAGIC
 # MAGIC 次のノートブック **`01_ingest_data`** で `samples.tpch` を自スキーマに取り込みます。

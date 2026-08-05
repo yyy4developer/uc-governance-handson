@@ -84,5 +84,65 @@ display(spark.sql(f"SHOW TABLES IN {FQ}"))
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## 🔍 データは物理的にどこにあるのか（UC の要点）
+# MAGIC
+# MAGIC Unity Catalog は**メタデータを管理する層**であり、実データを自分の中に抱えているわけではありません。
+# MAGIC いま作ったテーブルの**実体がどこにあるか**を確認してみましょう。
+
+# COMMAND ----------
+
+# テーブルの物理的な保存場所を確認する
+rows = spark.sql(f"DESCRIBE TABLE EXTENDED {FQ}.customer").collect()
+info = {r[0]: r[1] for r in rows if r[0]}
+
+print("【Unity Catalog が管理している“見え方”】")
+print(f"  カタログ  : {info.get('Catalog')}")
+print(f"  スキーマ  : {info.get('Database')}")
+print(f"  テーブル  : {info.get('Table')}")
+print(f"  種別      : {info.get('Type')}  （MANAGED = UC が実体の置き場所も管理）")
+print()
+print("【実データが物理的に置かれている場所】")
+print(f"  形式      : {info.get('Provider')}")
+print(f"  ロケーション: {info.get('Location')}")
+print()
+print("→ クラウドストレージ（abfss:// や s3://）上のファイルであり、")
+print("  UC は『どこに何があり、誰が使えるか』を管理しています（＝仮想的な統合）。")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### なぜこれが重要か
+# MAGIC
+# MAGIC ```
+# MAGIC   Unity Catalog（メタデータの層）
+# MAGIC     ・テーブルという「見え方」／説明文・タグ／権限・ポリシー／リネージ・監査
+# MAGIC             │  「実体はここ」という参照
+# MAGIC             ▼
+# MAGIC   クラウドストレージ（実データ = Delta 形式のファイル）
+# MAGIC ```
+# MAGIC
+# MAGIC - **この後の操作はすべてメタデータの層で行います**。説明文やタグを付けても（`02`）、
+# MAGIC   アクセス制御をかけても（`03`）、**実データのファイルは書き換わりません**。
+# MAGIC - Delta Sharing（`06`）で社外に共有するときも、**データをコピーせず**
+# MAGIC   「参照する権利」を渡すだけです。
+# MAGIC - そして UC がメタデータの層である以上、**自分のストレージ以外**（AWS Glue、Redshift、
+# MAGIC   BigQuery など）も同じ枠組みに載せられます → これが **Lakehouse Federation**
+# MAGIC   （本日はコンセプトのご紹介のみ）。
+# MAGIC
+# MAGIC > 📖 [Unity Catalog のデータオブジェクト階層](https://docs.databricks.com/ja/data-governance/unity-catalog/index.html) ／
+# MAGIC > [マネージドテーブルと外部テーブル](https://docs.databricks.com/ja/tables/index.html)
+# MAGIC
+# MAGIC **🖱️ UI でも確認できます**
+# MAGIC 1. **Catalog** → 自分のスキーマ → `customer` テーブル
+# MAGIC 2. **Details** タブを開く
+# MAGIC 3. **Storage location**（保存場所）と **Table type: MANAGED**、**Data source format: DELTA** を確認
+# MAGIC
+# MAGIC 💡 補足: `MANAGED`（マネージドテーブル）は置き場所も UC が管理する方式です。
+# MAGIC 既存のストレージ上のファイルをそのままテーブルとして扱う `EXTERNAL`（外部テーブル）もあり、
+# MAGIC どちらも**同じようにガバナンスできます**。
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC 次のノートブック **`02_catalog_schema`** で COMMENT・タグ・主キー/外部キー制約を付与し、
 # MAGIC ガバナンスの土台（リネージ・Genie の精度向上）を整えます。
