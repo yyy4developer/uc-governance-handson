@@ -81,9 +81,11 @@ print(f"target = {FQ}")
 # MAGIC 1. 画面上部の **検索窓**（`Cmd/Ctrl + P`）に `orders` と入力 → 資産候補が出る
 # MAGIC 2. Enter で **Search results** ページへ。**Type**（Table/View など）や **Catalog** で絞り込み
 # MAGIC
-# MAGIC **B. タグで検索する（⚠️ 検索窓から行います）**
+# MAGIC **B. タグで検索する（⚠️ 上部の検索窓から行います）**
 # MAGIC
-# MAGIC タグ検索は **画面上部の検索窓**（`Cmd/Ctrl + P`）で、専用の構文を使います。
+# MAGIC `02` で定義した**管理タグ**を使って資産を絞り込みます。方法は 2 つあります。
+# MAGIC
+# MAGIC *方法1: 検索構文で直接指定*
 # MAGIC
 # MAGIC | 検索したいもの | 入力する構文 |
 # MAGIC |---|---|
@@ -93,17 +95,21 @@ print(f"target = {FQ}")
 # MAGIC 1. `Cmd/Ctrl + P` → `tag:uc_handson_domain:procurement` と入力
 # MAGIC 2. `part` / `supplier` がヒットすることを確認（`02` で付けたタグが効く）
 # MAGIC
-# MAGIC 検索結果ページのフィルタで絞る方法もあります:
+# MAGIC *方法2: フィルタから選択（管理タグなら候補に出ます）*
 # MAGIC 1. `Cmd/Ctrl + P` → Enter で **Search results** ページを開く
 # MAGIC 2. **Type** ドロップダウンで **Tables** を選択
-# MAGIC 3. 現れた **Tag** フィルタでタグキーを選択
+# MAGIC 3. 現れた **Tag** フィルタを開くと `uc_handson_domain` などが**候補として並ぶ**ので選択
 # MAGIC
-# MAGIC > ⚠️ **よくある誤解**: **Catalog Explorer 左サイドバーのフィルタ欄では、タグ検索はできません**
+# MAGIC > ⚠️ **Catalog Explorer 左サイドバーのフィルタ欄では、タグ検索はできません**
 # MAGIC > （公式ドキュメントに明記: "You cannot use the filter field in Catalog Explorer to search by tag."）。
 # MAGIC > タグで探すときは必ず**上部の検索窓**を使ってください。
 # MAGIC >
 # MAGIC > ⚠️ **完全一致が必要**です（`tag:uc_handson` のような部分一致では見つかりません）。
 # MAGIC > タグキーは**大文字小文字を区別**します。
+# MAGIC >
+# MAGIC > 💡 **通常タグとの違い**: `CREATE GOVERNED TAG` していない通常タグは、
+# MAGIC > 検索構文（方法1）では効きますが、**Tag フィルタの候補（方法2）には出ません**
+# MAGIC > （現時点のプロダクト制約）。組織的にタグ運用するなら管理タグが有利な理由の一つです。
 # MAGIC >
 # MAGIC > 💡 検索対象はテーブル / ビュー / モデル / Volume / 関数 / ダッシュボード / ノートブック。
 # MAGIC > カタログ・スキーマ・**列**はタグ検索の対象外です。

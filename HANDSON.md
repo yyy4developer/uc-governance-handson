@@ -87,7 +87,7 @@ Genie や一部の画面操作で使います。
 |---|---|---|
 | 1 | `00_setup` | 自分のスキーマと Volume（ファイル置き場）を作る |
 | 2 | `01_ingest_data` | `samples.tpch`（標準サンプル）を自分のスキーマに取り込む |
-| 3 | `02_catalog_schema` | 説明文（COMMENT）・タグ・主キー/外部キーを整える |
+| 3 | `02_catalog_schema` | 説明文（COMMENT）・**管理タグ**・主キー/外部キーを整える |
 
 各ノートブックを開いたら:
 1. 右上の **Connect** → **Serverless** に接続
@@ -215,9 +215,18 @@ Genie や一部の画面操作で使います。
 1. 画面上部の **検索窓**（`Cmd/Ctrl + P`）
 2. `order_analysis` と入力 → テーブルが候補に出る
 
-**A-2. タグで検索する（⚠️ 検索窓から行います）**
-1. 同じ **検索窓**（`Cmd/Ctrl + P`）に `tag:uc_handson_domain:procurement` と入力
-2. `part` / `supplier` がヒットします（Part 1 で付けたタグ）
+**A-2. タグで検索する（⚠️ 上部の検索窓から行います）**
+
+Part 1 で定義した**管理タグ**で絞り込みます。2つの方法があります。
+
+*方法1: 構文で直接*
+1. **検索窓**（`Cmd/Ctrl + P`）に `tag:uc_handson_domain:procurement` と入力
+2. `part` / `supplier` がヒットします
+
+*方法2: フィルタから選ぶ*
+1. `Cmd/Ctrl + P` → Enter で **Search results** ページへ
+2. **Type** → **Tables** を選択
+3. 現れた **Tag** フィルタを開くと `uc_handson_domain` が**候補に並ぶ**ので選択
 
 > ⚠️ **Catalog Explorer 左サイドバーのフィルタ欄では、タグ検索はできません**（公式仕様）。
 > タグで探すときは必ず**上部の検索窓**を使い、`tag:<キー>` または `tag:<キー>:<値>` の形で入力します。
