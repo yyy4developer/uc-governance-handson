@@ -1,0 +1,30 @@
+# =============================================================================
+# UC ガバナンス ハンズオン — Federation あり版 設定
+#
+# 使い方:
+#   cp terraform.tfvars.example terraform.tfvars
+#   # terraform.tfvars を編集（このファイルは .gitignore 済み。secret はこちらにのみ書く）
+# =============================================================================
+
+# --- General ---
+project_prefix = "uc-handson"
+
+# --- Federation source toggles (両方 true で Glue + Redshift を構築) ---
+enable_glue     = true
+enable_redshift = true
+
+# --- Catalog naming ---
+catalog_prefix_query   = "ucf_query"    # → ucf_query_redshift
+catalog_prefix_catalog = "ucf_catalog"  # → ucf_catalog_glue
+analysis_catalog       = "ucf_union_dbx"
+
+# --- Databricks (OAuth U2M via CLI: databricks auth login --host <url>) ---
+databricks_host = "https://<your-workspace>.cloud.databricks.com"
+
+# --- AWS ---
+aws_region = "us-west-2"
+
+# --- SECRET: Redshift 管理者パスワード ---
+# 8 文字以上（大文字 + 小文字 + 数字）。ここに実値を書く（terraform.tfvars は gitignore 済み）。
+# あるいは環境変数: export TF_VAR_redshift_admin_password='...'
+redshift_admin_password = ""

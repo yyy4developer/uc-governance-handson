@@ -1,0 +1,32 @@
+resources:
+  jobs:
+    uc-handson-core-init:
+      name: "[${bundle.target}] UC Handson Core Init"
+      description: >-
+        土台の初期化: schema/volume 作成 → samples.tpch 取り込み → カタログ整備（COMMENT/タグ/制約）。
+        schema は渡さず _config のユーザー別自動判定に任せるため、
+        「ジョブを実行した人のスキーマ」に対して初期化される（マルチユーザー前提）。
+        ハンズオンでは参加者が UI から 00→01→02 を順に実行するのが基本で、
+        このジョブは講師の事前準備・動作確認用。
+      tasks:
+        - task_key: setup
+          notebook_task:
+            notebook_path: ../notebooks/core/00_setup.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        - task_key: ingest_data
+          depends_on:
+            - task_key: setup
+          notebook_task:
+            notebook_path: ../notebooks/core/01_ingest_data.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        - task_key: catalog_schema
+          depends_on:
+            - task_key: ingest_data
+          notebook_task:
+            notebook_path: ../notebooks/core/02_catalog_schema.py
+            base_parameters:
+              catalog: ${var.catalog}

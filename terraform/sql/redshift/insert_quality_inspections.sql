@@ -1,0 +1,47 @@
+INSERT INTO public.quality_inspections (inspection_id, machine_id, inspector_name, inspection_time, result, defect_count, notes) VALUES
+-- Pass results
+(1,  1, 'Tanaka',    '2025-01-15 09:00:00', 'pass', 0, 'All parameters within tolerance'),
+(2,  2, 'Suzuki',    '2025-01-15 09:30:00', 'pass', 0, 'No defects found'),
+(3,  3, 'Yamamoto',  '2025-01-15 10:00:00', 'pass', 0, 'Quality OK'),
+(4,  4, 'Watanabe',  '2025-01-15 10:30:00', 'pass', 0, 'Passed visual and dimensional check'),
+(5,  5, 'Kobayashi', '2025-01-15 11:00:00', 'pass', 0, 'Surface finish acceptable'),
+(6,  6, 'Tanaka',    '2025-01-16 09:00:00', 'pass', 0, 'All parameters within tolerance'),
+(7,  7, 'Suzuki',    '2025-01-16 09:30:00', 'pass', 0, 'No defects found'),
+(8,  8, 'Yamamoto',  '2025-01-16 10:00:00', 'pass', 0, 'Quality OK'),
+(9,  9, 'Watanabe',  '2025-01-16 10:30:00', 'pass', 0, 'Passed visual and dimensional check'),
+(10, 10,'Kobayashi', '2025-01-16 11:00:00', 'pass', 0, 'Surface finish acceptable'),
+-- Warning results
+(11, 2, 'Tanaka',    '2025-01-17 09:00:00', 'warning', 1, 'Minor surface scratch observed'),
+(12, 5, 'Suzuki',    '2025-01-17 10:00:00', 'warning', 1, 'Borderline vibration reading'),
+(13, 8, 'Yamamoto',  '2025-01-17 11:00:00', 'warning', 2, 'Slight discoloration noted'),
+(14, 3, 'Watanabe',  '2025-01-18 09:00:00', 'warning', 1, 'Tool wear approaching limit'),
+(15, 7, 'Kobayashi', '2025-01-18 10:00:00', 'warning', 1, 'Minor surface scratch observed'),
+(16, 1, 'Tanaka',    '2025-01-22 09:00:00', 'warning', 2, 'Slight discoloration noted'),
+-- Fail results
+(17, 8, 'Suzuki',    '2025-01-19 09:00:00', 'fail', 3, 'Dimensional tolerance exceeded'),
+(18, 5, 'Yamamoto',  '2025-01-19 10:00:00', 'fail', 2, 'Surface defect detected'),
+(19, 2, 'Watanabe',  '2025-01-20 09:00:00', 'fail', 4, 'Material hardness below specification'),
+(20, 7, 'Kobayashi', '2025-01-20 10:00:00', 'fail', 1, 'Weld integrity failure'),
+-- More pass results (week 2)
+(21, 1, 'Tanaka',    '2025-01-22 09:30:00', 'pass', 0, 'All parameters within tolerance'),
+(22, 3, 'Suzuki',    '2025-01-22 10:00:00', 'pass', 0, 'No defects found'),
+(23, 4, 'Yamamoto',  '2025-01-22 10:30:00', 'pass', 0, 'Quality OK'),
+(24, 6, 'Watanabe',  '2025-01-22 11:00:00', 'pass', 0, 'Passed visual and dimensional check'),
+(25, 9, 'Kobayashi', '2025-01-22 11:30:00', 'pass', 0, 'Surface finish acceptable'),
+(26, 10,'Tanaka',    '2025-01-23 09:00:00', 'pass', 0, 'All parameters within tolerance'),
+(27, 1, 'Suzuki',    '2025-01-23 09:30:00', 'pass', 0, 'No defects found'),
+(28, 2, 'Yamamoto',  '2025-01-23 10:00:00', 'pass', 0, 'Quality OK'),
+-- More warnings and fails (week 2)
+(29, 4, 'Watanabe',  '2025-01-24 09:00:00', 'warning', 1, 'Borderline vibration reading'),
+(30, 8, 'Kobayashi', '2025-01-24 10:00:00', 'fail', 5, 'Dimensional tolerance exceeded'),
+(31, 5, 'Tanaka',    '2025-01-25 09:00:00', 'warning', 2, 'Tool wear approaching limit'),
+(32, 7, 'Suzuki',    '2025-01-25 10:00:00', 'fail', 3, 'Surface defect detected'),
+-- Week 3 inspections
+(33, 1, 'Yamamoto',  '2025-01-29 09:00:00', 'pass', 0, 'All parameters within tolerance'),
+(34, 2, 'Watanabe',  '2025-01-29 09:30:00', 'pass', 0, 'No defects found'),
+(35, 3, 'Kobayashi', '2025-01-29 10:00:00', 'pass', 0, 'Quality OK'),
+(36, 4, 'Tanaka',    '2025-01-29 10:30:00', 'pass', 0, 'Passed visual and dimensional check'),
+(37, 6, 'Suzuki',    '2025-01-29 11:00:00', 'pass', 0, 'Surface finish acceptable'),
+(38, 9, 'Yamamoto',  '2025-01-30 09:00:00', 'warning', 1, 'Minor surface scratch observed'),
+(39, 10,'Watanabe',  '2025-01-30 10:00:00', 'pass', 0, 'All parameters within tolerance'),
+(40, 8, 'Kobayashi', '2025-01-30 11:00:00', 'fail', 2, 'Material hardness below specification')

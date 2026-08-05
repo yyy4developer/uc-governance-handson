@@ -1,0 +1,60 @@
+resources:
+  jobs:
+    uc-handson-federation-demo:
+      name: "[${bundle.target}] UC Handson Federation Demo"
+      description: >-
+        あり版のデモ実行: 前提（foreign catalog の存在）を確認し、Glue Catalog Federation /
+        Redshift Query Federation / クロスソース分析を実行する。
+        foreign catalog そのものは terraform/ で作成する（このジョブは作成しない）。
+      tasks:
+        - task_key: prereq_check
+          notebook_task:
+            notebook_path: ../notebooks/federation/00_prereq_env.py
+            base_parameters:
+              fed_catalog_glue: ${var.fed_catalog_glue}
+              fed_catalog_redshift: ${var.fed_catalog_redshift}
+              fed_union_catalog: ${var.fed_union_catalog}
+
+        - task_key: glue_catalog_fed
+          depends_on:
+            - task_key: prereq_check
+          notebook_task:
+            notebook_path: ../notebooks/federation/01_glue_catalog_fed.py
+            base_parameters:
+              fed_catalog_glue: ${var.fed_catalog_glue}
+
+        - task_key: redshift_query_fed
+          depends_on:
+            - task_key: prereq_check
+          notebook_task:
+            notebook_path: ../notebooks/federation/02_redshift_query_fed.py
+            base_parameters:
+              fed_catalog_redshift: ${var.fed_catalog_redshift}
+
+        - task_key: cross_source_lineage
+          depends_on:
+            - task_key: glue_catalog_fed
+            - task_key: redshift_query_fed
+          notebook_task:
+            notebook_path: ../notebooks/federation/03_cross_source_lineage.py
+            base_parameters:
+              fed_catalog_glue: ${var.fed_catalog_glue}
+              fed_catalog_redshift: ${var.fed_catalog_redshift}
+              fed_union_catalog: ${var.fed_union_catalog}
+
+        - task_key: federation_access
+          depends_on:
+            - task_key: cross_source_lineage
+          notebook_task:
+            notebook_path: ../notebooks/federation/04_federation_access.py
+            base_parameters:
+              fed_catalog_glue: ${var.fed_catalog_glue}
+              fed_catalog_redshift: ${var.fed_catalog_redshift}
+
+        - task_key: genie_federation
+          depends_on:
+            - task_key: federation_access
+          notebook_task:
+            notebook_path: ../notebooks/federation/05_genie_federation.py
+            base_parameters:
+              fed_union_catalog: ${var.fed_union_catalog}

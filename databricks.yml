@@ -1,0 +1,43 @@
+# Databricks Asset Bundle: Unity Catalog Governance ハンズオン
+# https://docs.databricks.com/dev-tools/bundles/index.html
+bundle:
+  name: uc-governance-handson
+
+variables:
+  catalog:
+    description: "対象 Unity Catalog（既存のものを再利用。CREATE CATALOG 権限は前提にしない）"
+    default: main
+  schema:
+    description: "スキーマ名（固定。個人 sandbox 前提。複数人で使う場合は各自で上書き）"
+    default: uc_handson
+  warehouse_id:
+    description: "Serverless SQL Warehouse ID（%sql / Genie 用。SQL Warehouses 画面から取得）"
+    default: ""
+  # --- Federation あり版（Terraform の outputs から設定して上書き） ---
+  fed_catalog_glue:
+    description: "Glue Catalog Federation の foreign catalog 名（terraform output databricks_catalogs.glue）"
+    default: ""
+  fed_catalog_redshift:
+    description: "Redshift Query Federation の foreign catalog 名（terraform output databricks_catalogs.redshift）"
+    default: ""
+  fed_union_catalog:
+    description: "クロスソース分析結果を格納する union catalog 名（terraform output）"
+    default: ""
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    # 注: schema/volume は notebook (00_setup.py) が CREATE するため、
+    # dev mode の "[dev user]" prefix は schema 名に影響しない（schema は常に ${var.schema}=uc_handson）。
+    # prefix はジョブ表示名にのみ付く（実害なし）。
+  prod:
+    mode: production
+    permissions:
+      - user_name: ${workspace.current_user.userName}
+        level: CAN_MANAGE
+    run_as:
+      user_name: ${workspace.current_user.userName}
