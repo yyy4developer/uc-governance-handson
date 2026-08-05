@@ -211,6 +211,18 @@ for stmt in tag_stmts:
 # MAGIC 1. `orders` テーブルの **Overview** タブ右側 **Tags** の **＋ Add tags** をクリック
 # MAGIC 2. key に `uc_handson_domain`、value に `sales` を入力 → **Add** → **Save**
 # MAGIC    （`domain` のような一般的なキーは管理タグとして登録済みの場合があり、許可値の制約で弾かれます）
+# MAGIC 3. 管理タグは **Governed** セクションに 🔒 付きで表示され、それ以外は **Other** に出ます
+# MAGIC
+# MAGIC **B-2. 付けたタグはどこで見えるか（重要）**
+# MAGIC
+# MAGIC | 確認したい方法 | 場所 |
+# MAGIC |---|---|
+# MAGIC | 付与状況を見る | テーブル/列の **Overview** タブ → **Tags** 欄 |
+# MAGIC | タグで**検索**する | **画面上部の検索窓**（`Cmd/Ctrl + P`）で `tag:uc_handson_domain:sales` |
+# MAGIC | 一覧で確認する | SQL（`system.information_schema.table_tags` / `column_tags`）|
+# MAGIC
+# MAGIC > ⚠️ **Catalog Explorer 左サイドバーのフィルタ欄では、タグ検索はできません**（公式仕様）。
+# MAGIC > タグで探すときは**上部の検索窓**を使います。詳しくは `05_discovery` で扱います。
 # MAGIC 3. カラムのタグは、カラム行の右端 **⋮（kebab）→ Edit tags** から同様に付与
 # MAGIC
 # MAGIC **C. 主キー/外部キーの確認**
