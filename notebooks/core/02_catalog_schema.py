@@ -199,5 +199,5 @@ for stmt in tag_stmts:
 # MAGIC - PK/FK は SQL（`ALTER TABLE ... ADD CONSTRAINT`）での宣言が基本です。
 # MAGIC   UI では **Details** タブや **Entity Relationship**（ER 図）で宣言済みの関係を確認できます。
 # MAGIC
-# MAGIC これで**なし版の初期化は完了**です（`uc-handson-core-init` ジョブはここまで自動実行）。
+# MAGIC これで**土台づくりは完了**です（00 → 01 → 02）。
 # MAGIC 以降の `03`〜`08` は UI で 1 つずつ実行しながらガバナンス機能を体験します。

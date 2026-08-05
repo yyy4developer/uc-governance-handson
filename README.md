@@ -71,33 +71,28 @@ AWS Glue（Catalog Federation）と Amazon Redshift（Query Federation）を Uni
 ## 前提条件
 
 - Databricks workspace（Unity Catalog 有効）
-- Serverless SQL Warehouse（`%sql` セル / Genie 用）
-- [Databricks CLI](https://docs.databricks.com/dev-tools/cli/index.html)（`databricks bundle` を使用）
-- **あり版のみ**: AWS アカウント + [Terraform](https://developer.hashicorp.com/terraform/downloads)
+- Serverless コンピュート（ノートブック実行用）と Serverless SQL Warehouse（Genie 用）
+- **ブラウザだけで完結します** — CLI やローカル環境の準備は不要です
 
 ---
 
-## セットアップ
+## セットアップ（すべて画面操作）
 
-### 1. 認証
+### 1. カタログ名を設定する（講師のみ、1 行だけ）
 
-```bash
-databricks auth login --host https://<your-workspace>.cloud.databricks.com
-```
-
-### 2. カタログ名を設定する（講師側、1 箇所だけ）
-
-`notebooks/core/_config.py` の `DEFAULT_CATALOG` を、使用するワークスペースの
-既存カタログ名に書き換えます。**参加者が編集する必要はありません**。
+`notebooks/core/_config.py` を Databricks の画面で開き、`DEFAULT_CATALOG` を
+使用するワークスペースの既存カタログ名に書き換えます。
 
 ```python
 DEFAULT_CATALOG = "<your_catalog>"
 ```
 
 スキーマは `_config` が**ログインユーザー名から自動生成**します（例 `uc_handson_taro_yamada`）。
-これにより複数人が同じワークスペースで同時に作業しても衝突しません。
+そのため**参加者は何も編集する必要がなく**、複数人が同じワークスペースで同時に作業しても衝突しません。
 
-参加者に必要なカタログ権限（管理者が事前に付与）:
+### 2. 参加者に権限を付与する（講師 / 管理者のみ）
+
+ワークスペースの **SQL Editor** を開き、次を実行します。
 
 ```sql
 GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <your_catalog> TO `account users`;
@@ -106,28 +101,20 @@ GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <your_catalog> TO `account users`;
 > ⚠️ Unity Catalog の principal は `account users` です。ワークスペースローカルの
 > `users` グループを指定すると `PRINCIPAL_DOES_NOT_EXIST` になります。
 
+参加者はこれで自分のスキーマを作れるようになります。
+
 ### 3. ハンズオンの進め方（参加者）
 
-参加者は **Git folder としてこのリポジトリを取り込み**、`notebooks/core/` の
-`00_setup` から `08_genie` までを順に実行します。詳細は [HANDSON.md](./HANDSON.md)。
+1. このリポジトリを **Git folder** としてワークスペースに取り込む
+   （**Workspace → Create → Git folder** に URL を貼るだけ）
+2. `notebooks/core/` の `00_setup` から `08_genie` までを、**▶ Run all** で順に実行
+3. 各ステップごとに Catalog Explorer で結果を画面確認
 
-### （任意）講師が事前に動作確認する場合
+詳細な進行は [HANDSON.md](./HANDSON.md) にあります。
 
-```bash
-databricks bundle validate -t dev
-
-databricks bundle deploy -t dev \
-  --var catalog=<your_catalog> \
-  --var warehouse_id=<your_warehouse_id> \
-  --auto-approve
-
-# 初期化ジョブ（実行した人のスキーマに対して 00→01→02 を実行）
-databricks bundle run uc-handson-core-init -t dev \
-  --var catalog=<your_catalog> --var warehouse_id=<your_warehouse_id>
-```
-
-> このジョブは `schema` を渡しません（`_config` のユーザー別自動判定に任せるため）。
-> ハンズオン本番では参加者が UI から 00→01→02 を順に実行するのが基本です。
+> 💡 **ジョブやバンドル（DAB）のデプロイは不要です**。参加者は Git folder 内のノートブックを
+> そのまま実行するだけで、スキーマ作成からデータ取り込みまで完了します。
+> 講師が事前確認する場合も、同じノートブックを順に実行するだけです。
 
 #### アクセス制御デモ（03）は ABAC ポリシーベース
 
@@ -174,12 +161,11 @@ cp terraform.tfvars.example terraform.tfvars
 
 terraform init
 terraform apply       # Glue / Redshift / IAM / UC connection / foreign catalog を作成
-
-# terraform output で得た catalog 名を bundle 変数に渡す
-databricks bundle run uc-handson-federation-demo -t dev \
-  --var fed_catalog_glue=$(terraform output -raw ...) \
-  --var fed_catalog_redshift=$(terraform output -raw ...)
+terraform output      # 作成された foreign catalog 名を確認
 ```
+
+構築後、`notebooks/federation/` のノートブックを Databricks の画面で開き、
+冒頭のカタログ名を `terraform output` の値に合わせてから実行します。
 
 詳細は `terraform/terraform.tfvars.example` と `notebooks/federation/00_prereq_env.py` を参照。
 
@@ -187,14 +173,17 @@ databricks bundle run uc-handson-federation-demo -t dev \
 
 ## クリーンアップ
 
+参加者が作ったスキーマを消す場合は、**SQL Editor** で:
+
+```sql
+DROP SCHEMA IF EXISTS <catalog>.uc_handson_<user> CASCADE;
+```
+
+Git folder はワークスペースの画面から削除できます（**⋮ → Delete**）。
+
+参考実装の Federation を試した場合のみ:
+
 ```bash
-# bundle（notebook / job を削除）
-databricks bundle destroy -t dev
-
-# 参加者が作ったスキーマを消す場合（SQL）
-#   DROP SCHEMA IF EXISTS <catalog>.uc_handson_<user> CASCADE;
-
-# 参考実装の Federation を試した場合のみ
 cd terraform && terraform destroy
 ```
 
@@ -205,13 +194,13 @@ cd terraform && terraform destroy
 ```
 uc-governance-handson/
 ├── HANDSON.md                # ⭐ 参加者向けの進行ガイド
-├── databricks.yml            # DAB 定義
-├── resources/                # DAB リソース（jobs）
 ├── notebooks/core/           # ⭐ ハンズオン本体（_config, 00_setup 〜 08_genie）
 ├── notebooks/federation/     # 参考実装（ハンズオン対象外）
 ├── terraform/                # 参考実装の環境構築（ハンズオン対象外）
 └── docs/architecture.md      # アーキテクチャ図
 ```
+
+すべてブラウザ上の操作で完結するため、ビルド設定やデプロイ定義はありません。
 
 ---
 
