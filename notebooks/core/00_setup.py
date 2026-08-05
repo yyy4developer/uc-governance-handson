@@ -35,11 +35,13 @@ print(f"target = {FQ}")
 
 # COMMAND ----------
 
-spark.sql(f"USE CATALOG {catalog}")
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema} COMMENT '部品調達・受注 ガバナンス ハンズオン（なし版、samples.tpch 由来）'")
-spark.sql(f"CREATE VOLUME IF NOT EXISTS {catalog}.{schema}.raw COMMENT 'ランディング領域'")
+spark.sql(f"CREATE SCHEMA IF NOT EXISTS {FQ}")
+# スキーマは _config が先に作るため（COMMENT なし）、ここで明示的に説明文を付ける。
+# COMMENT ON は既存スキーマにも効くので、何度実行しても同じ結果になる。
+spark.sql(f"COMMENT ON SCHEMA {FQ} IS '部品調達・受注 ガバナンス ハンズオン（samples.tpch 由来）'")
+spark.sql(f"CREATE VOLUME IF NOT EXISTS {FQ}.raw COMMENT 'ランディング領域（ファイル置き場）'")
 
-print(f"✓ Schema : {catalog}.{schema}")
+print(f"✓ Schema : {FQ}")
 print(f"✓ Volume : /Volumes/{catalog}/{schema}/raw")
 
 # COMMAND ----------
