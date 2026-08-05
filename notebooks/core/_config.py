@@ -21,10 +21,10 @@
 # COMMAND ----------
 
 # ★★★ 講師が環境に合わせて設定する箇所 ★★★
-# 使用するワークスペースの既存カタログ名に書き換えてください。
-# （分からない場合は Catalog Explorer で対象カタログ名を確認、
-#   または SELECT current_catalog() の結果を使う）
-DEFAULT_CATALOG = "main"
+# 使用するワークスペースの既存カタログ名。
+# 別の環境で使う場合はここだけ書き換えてください
+# （Catalog Explorer で対象カタログ名を確認、または SELECT current_catalog() の結果を使う）。
+DEFAULT_CATALOG = "catalog_azure_nbiwes"
 
 # 参加者ごとにスキーマを分ける（ハンズオンでは True 推奨）
 SCHEMA_PER_USER = True
