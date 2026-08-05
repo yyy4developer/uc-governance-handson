@@ -105,7 +105,7 @@ Genie や一部の画面操作で使います。
 5. `customer` をクリックして以下を確認:
    - **Overview** タブ … 列ごとの説明文（COMMENT）が入っている
    - **Details** タブ … 主キー・外部キーの情報
-   - 列名の横の **タグ** … `domain` / `layer` などが付いている
+   - 列名の横の **タグ** … `uc_handson_domain` / `uc_handson_layer` などが付いている
 
 ### 1-3. ⭐ AI にコメントを書かせてみる（UI）
 

@@ -54,7 +54,7 @@ print(f"target = {FQ}")
 # MAGIC %md
 # MAGIC ## 3. タグによる絞り込み
 # MAGIC
-# MAGIC `02_catalog_schema` で付けたタグ（`domain`, `layer`）で資産を分類・発見します。
+# MAGIC `02_catalog_schema` で付けたタグ（`uc_handson_domain`, `uc_handson_layer`）で資産を分類・発見します。
 
 # COMMAND ----------
 

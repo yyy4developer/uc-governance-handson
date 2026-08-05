@@ -123,24 +123,41 @@ for stmt in pk_fk:
 
 # MAGIC %md
 # MAGIC ## タグ付け（分類・検索用）
+# MAGIC
+# MAGIC テーブル・列にタグを付けて、後から**検索・分類**できるようにします。
+# MAGIC
+# MAGIC ⚠️ **タグキーに `uc_handson_` を付けている理由**: `domain` や `sensitivity` のような
+# MAGIC 一般的な名前は、**アカウントに既に「管理タグ（Governed Tag）」として登録されている**ことがあります。
+# MAGIC 管理タグは許可値が決められているため、想定外の値を入れると
+# MAGIC `Tag value ... is not an allowed value for tag policy key ...` で弾かれます
+# MAGIC （これは 03 で扱う **Tag Policies** の統制が実際に効いている例です）。
+# MAGIC 本ハンズオンでは衝突を避けるため、専用の prefix 付きキーを使います。
 
 # COMMAND ----------
 
 tag_stmts = [
-    "ALTER TABLE part     SET TAGS ('domain' = 'procurement', 'layer' = 'master')",
-    "ALTER TABLE supplier SET TAGS ('domain' = 'procurement', 'layer' = 'master')",
-    "ALTER TABLE customer SET TAGS ('domain' = 'sales', 'layer' = 'master')",
-    "ALTER TABLE orders   SET TAGS ('domain' = 'sales', 'layer' = 'transaction')",
-    "ALTER TABLE lineitem SET TAGS ('domain' = 'sales', 'layer' = 'transaction')",
-    # 列レベルタグ: 後続の列マスク（03）の対象になる機微カラム
-    "ALTER TABLE customer ALTER COLUMN c_acctbal SET TAGS ('sensitivity' = 'confidential')",
-    "ALTER TABLE supplier ALTER COLUMN s_acctbal SET TAGS ('sensitivity' = 'confidential')",
+    "ALTER TABLE part     SET TAGS ('uc_handson_domain' = 'procurement', 'uc_handson_layer' = 'master')",
+    "ALTER TABLE supplier SET TAGS ('uc_handson_domain' = 'procurement', 'uc_handson_layer' = 'master')",
+    "ALTER TABLE customer SET TAGS ('uc_handson_domain' = 'sales', 'uc_handson_layer' = 'master')",
+    "ALTER TABLE orders   SET TAGS ('uc_handson_domain' = 'sales', 'uc_handson_layer' = 'transaction')",
+    "ALTER TABLE lineitem SET TAGS ('uc_handson_domain' = 'sales', 'uc_handson_layer' = 'transaction')",
+    # 列レベルタグ: 機微カラムの目印（03 の列マスクでは別途 管理タグ を使います）
+    "ALTER TABLE customer ALTER COLUMN c_acctbal SET TAGS ('uc_handson_sensitivity' = 'confidential')",
+    "ALTER TABLE supplier ALTER COLUMN s_acctbal SET TAGS ('uc_handson_sensitivity' = 'confidential')",
 ]
 for stmt in tag_stmts:
+    target = stmt.split("SET TAGS")[0].replace("ALTER TABLE", "").strip()
     try:
-        spark.sql(stmt); print("✓ tag set")
+        spark.sql(stmt)
+        print(f"✓ tag set: {target}")
     except Exception as e:
-        print("· skip:", str(e).splitlines()[0][:80])
+        msg = str(e)
+        if "not an allowed value for tag policy key" in msg:
+            # 管理タグと衝突。許可値の一覧をそのまま見せる（原因が分かるように）
+            print(f"⚠️ {target}: 管理タグの許可値に無い値です →")
+            print("   ", msg[msg.find("Tag value"):].splitlines()[0][:220])
+        else:
+            print(f"· skip: {target}: {msg.splitlines()[0][:110]}")
 
 # COMMAND ----------
 
@@ -192,7 +209,8 @@ for stmt in tag_stmts:
 # MAGIC
 # MAGIC **B. タグを UI で付ける**
 # MAGIC 1. `orders` テーブルの **Overview** タブ右側 **Tags** の **＋ Add tags** をクリック
-# MAGIC 2. key に `domain`、value に `sales` を入力 → **Add** → **Save**
+# MAGIC 2. key に `uc_handson_domain`、value に `sales` を入力 → **Add** → **Save**
+# MAGIC    （`domain` のような一般的なキーは管理タグとして登録済みの場合があり、許可値の制約で弾かれます）
 # MAGIC 3. カラムのタグは、カラム行の右端 **⋮（kebab）→ Edit tags** から同様に付与
 # MAGIC
 # MAGIC **C. 主キー/外部キーの確認**
