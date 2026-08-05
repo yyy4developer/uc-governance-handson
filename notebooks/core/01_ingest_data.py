@@ -137,9 +137,34 @@ print("  UC は『どこに何があり、誰が使えるか』を管理して�
 # MAGIC 2. **Details** タブを開く
 # MAGIC 3. **Storage location**（保存場所）と **Table type: MANAGED**、**Data source format: DELTA** を確認
 # MAGIC
-# MAGIC 💡 補足: `MANAGED`（マネージドテーブル）は置き場所も UC が管理する方式です。
-# MAGIC 既存のストレージ上のファイルをそのままテーブルとして扱う `EXTERNAL`（外部テーブル）もあり、
-# MAGIC どちらも**同じようにガバナンスできます**。
+# MAGIC ### 補足: MANAGED と EXTERNAL の違い
+# MAGIC
+# MAGIC 今回のテーブルは `MANAGED`（マネージドテーブル）で、**データの置き場所も UC が管理**します。
+# MAGIC 一方、既存のストレージ上のファイルをそのままテーブルとして扱う `EXTERNAL`（外部テーブル）もあります。
+# MAGIC
+# MAGIC ガバナンス機能の多くは両方で使えますが、**同一ではありません**。
+# MAGIC
+# MAGIC | | MANAGED | EXTERNAL |
+# MAGIC |---|---|---|
+# MAGIC | GRANT / 行フィルタ / 列マスク / ABAC | ✅ | ✅ |
+# MAGIC | リネージ・監査（UC 経由のアクセス） | ✅ | ✅ |
+# MAGIC | Delta Sharing | ✅ | ✅ |
+# MAGIC | **ストレージパスへの直接アクセス** | 起きにくい | **⚠️ 起こり得る** |
+# MAGIC | `DROP TABLE` 時のデータ削除 | 自動 | メタデータのみ（データは残る） |
+# MAGIC | 自動最適化（Predictive Optimization / Liquid Clustering） | ✅ | ❌ |
+# MAGIC
+# MAGIC ⚠️ **ガバナンス上の重要な差**: 外部テーブルは、**ストレージのパスを知っている人が
+# MAGIC UC を経由せずに直接ファイルを読める**可能性があります。その経路では
+# MAGIC **権限・監査・リネージがすべて迂回されます**。
+# MAGIC 外部テーブルを使う場合は、ストレージ側の権限を絞り、
+# MAGIC アクセスを UC 経由に限定する運用が前提になります。
+# MAGIC
+# MAGIC > 一般論として、**新規に作るなら MANAGED が推奨**です（ガバナンスが閉じており、最適化も効く）。
+# MAGIC > 既にストレージにデータ資産がある場合の受け皿として EXTERNAL を使います。
+# MAGIC >
+# MAGIC > 📖 [マネージドテーブル](https://docs.databricks.com/ja/tables/managed.html) ／
+# MAGIC > [外部テーブル](https://docs.databricks.com/ja/tables/external.html) ／
+# MAGIC > [UC のベストプラクティス](https://docs.databricks.com/ja/data-governance/unity-catalog/best-practices.html)
 
 # COMMAND ----------
 

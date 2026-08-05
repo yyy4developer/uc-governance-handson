@@ -51,7 +51,8 @@ Databricks 標準サンプル `samples.tpch` を自分のスキーマに取り�
 
 `notebooks/federation/` と `terraform/` には、**Lakehouse Federation** の実装例が入っています。
 AWS Glue（Catalog Federation）と Amazon Redshift（Query Federation）を Unity Catalog 傘下に取り込み、
-**同じ GRANT / リネージ / Genie がそのまま効く**ことを示すものです。
+**同じ枠組みで GRANT / リネージ / 監査 / Genie を効かせられる**ことを示すものです
+（機能ごとに制約はあるため、個別の可否は要件に応じて確認してください）。
 
 > ⚠️ **ハンズオンでは実施しません**。AWS 側のリソース構築（Glue / Redshift / IAM / ネットワーク）が
 > 必要で、環境準備に時間とコストがかかるためです。
