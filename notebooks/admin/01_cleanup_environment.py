@@ -40,7 +40,7 @@
 TARGET_CATALOG = "main"
 
 # ★ 参加者グループ名
-GROUP_NAME = "uc_handson_participants"
+GROUP_NAME = "trail-uc-handson-grp"
 
 # ★ 参加者スキーマの接頭辞（_config.py の SCHEMA_PREFIX と同じ）
 SCHEMA_PREFIX = "uc_handson"
@@ -261,6 +261,53 @@ try:
         print(f"✓ グループ '{GROUP_NAME}' は見つかりません（削除済み、または未作成）")
 except Exception as e:
     print("⚠️ 確認できません:", str(e).splitlines()[0][:150])
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 5-2.（グループを残す場合）付与した権限だけを取り消す
+# MAGIC
+# MAGIC 既存のグループを流用した、あるいは別用途で残したい場合は、
+# MAGIC **グループは消さずに付与した権限だけ**を取り消します。
+# MAGIC
+# MAGIC ⚠️ このグループが**他の用途でも使われている場合は実行しないでください**
+# MAGIC （関係のない権限まで取り消してしまいます）。
+
+# COMMAND ----------
+
+# ★ グループは残し、付与した権限だけを取り消す場合は True
+REVOKE_GROUP_GRANTS = False
+
+# COMMAND ----------
+
+if not REVOKE_GROUP_GRANTS:
+    print("REVOKE_GROUP_GRANTS = False のためスキップしました。")
+    print("（グループを削除するなら不要です。グループを残す場合のみ True に）")
+else:
+    G = f"`{GROUP_NAME}`"
+    print(f"■ {GROUP_NAME} への付与を取り消します\n")
+    revokes = [
+        (f"REVOKE USE CATALOG, CREATE SCHEMA ON CATALOG {TARGET_CATALOG} FROM {G}",
+         f"カタログ {TARGET_CATALOG}"),
+        (f"REVOKE CREATE SHARE, CREATE RECIPIENT ON METASTORE FROM {G}",
+         "メタストア（Delta Sharing）"),
+        (f"REVOKE USE SCHEMA, SELECT ON SCHEMA system.access FROM {G}",
+         "system.access（監査ログ）"),
+    ]
+    for tag in handson_tags:
+        revokes.append((f"REVOKE ASSIGN ON GOVERNED TAG {tag} FROM {G}",
+                        f"管理タグ {tag} の ASSIGN"))
+    for stmt, label in revokes:
+        try:
+            spark.sql(stmt)
+            print(f"  ✓ {label}")
+        except Exception as e:
+            msg = str(e).splitlines()[0]
+            if any(k in msg for k in ("NOT_FOUND", "does not exist",
+                                      "PRINCIPAL_DOES_NOT_EXIST")):
+                print(f"  · スキップ（対象なし）: {label}")
+            else:
+                print(f"  ⚠️ {label}: {msg[:150]}")
 
 # COMMAND ----------
 

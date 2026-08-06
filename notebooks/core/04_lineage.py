@@ -25,8 +25,12 @@ print(f"target = {FQ}")
 # MAGIC %md
 # MAGIC ## 1. 受注分析サマリーの作成
 # MAGIC
-# MAGIC `orders` + `lineitem` + `customer` + `part` + `supplier` を JOIN し、
+# MAGIC `orders` + `lineitem` + `customer` + `nation` を JOIN し、
 # MAGIC 顧客・市場セグメント別の受注サマリを作成します。
+# MAGIC
+# MAGIC > 💡 サプライヤー数・部品数は `lineitem` の `l_suppkey` / `l_partkey` を
+# MAGIC > `count(DISTINCT ...)` で数えているため、`supplier` / `part` テーブル自体は結合しません。
+# MAGIC > このあとリネージグラフで**上流に何が出るか**（4 テーブルのみ）を確認してみてください。
 
 # COMMAND ----------
 

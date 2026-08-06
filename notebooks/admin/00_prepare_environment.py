@@ -53,7 +53,7 @@ TARGET_CATALOG = "main"
 #   Account Console で作成したグループ名（§2 参照）。
 #   参加者の追加は Account Console 側で行うため、ここにメールアドレスは書きません。
 #   ⚠️ notebooks/core/_config.py の PARTICIPANT_GROUP と同じ値にしてください
-GROUP_NAME = "uc_handson_participants"
+GROUP_NAME = "trail-uc-handson-grp"
 
 # ★★★ 3. 監査ログ（07）を参加者に実行させるか ★★★
 #   True  → system.access に SELECT を付与
@@ -166,12 +166,12 @@ print(f"{'⚠️ ' + str(len(warn)) + ' 件の確認事項があります' if wa
 # MAGIC databricks auth login --host <account-console-url> --account-id <account-id>
 # MAGIC
 # MAGIC # 2) アカウントにグループを作成
-# MAGIC databricks account groups create --display-name uc_handson_participants \
+# MAGIC databricks account groups create --display-name trail-uc-handson-grp \
 # MAGIC   -p <account-profile>
 # MAGIC
 # MAGIC # 3) このワークスペースに追加（同名で POST する。ワークスペースのプロファイルで実行）
 # MAGIC databricks api post /api/2.0/preview/scim/v2/Groups -p <workspace-profile> \
-# MAGIC   --json '{"displayName":"uc_handson_participants",
+# MAGIC   --json '{"displayName":"trail-uc-handson-grp",
 # MAGIC            "schemas":["urn:ietf:params:scim:schemas:core:2.0:Group"]}'
 # MAGIC ```
 # MAGIC

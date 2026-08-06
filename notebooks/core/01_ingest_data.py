@@ -9,16 +9,20 @@
 # MAGIC native Delta テーブルとして取り込みます。以降のガバナンス操作（COMMENT / 制約 / GRANT / タグ /
 # MAGIC 行フィルタ / リネージ / 共有）は、この自スキーマ上のテーブルで行います。
 # MAGIC
-# MAGIC | テーブル | 内容 | 主キー | 行数（サブセット） |
+# MAGIC | テーブル | 内容 | 主キー | 行数 |
 # MAGIC |---|---|---|---|
-# MAGIC | `region` / `nation` | 地域・国マスタ | r_regionkey / n_nationkey | 5 / 25 |
-# MAGIC | `supplier` | サプライヤー | s_suppkey | 1,000 |
-# MAGIC | `part` | 部品マスタ | p_partkey | 2,000 |
-# MAGIC | `customer` | 顧客 | c_custkey | 1,500 |
-# MAGIC | `orders` | 受注 | o_orderkey | 5,000（サブセット） |
-# MAGIC | `lineitem` | 受注明細 | (l_orderkey, l_linenumber) | orders に対応する明細 |
+# MAGIC | `region` | 地域マスタ | r_regionkey | 5 |
+# MAGIC | `nation` | 国マスタ | n_nationkey | 25 |
+# MAGIC | `supplier` | サプライヤー | s_suppkey | 50,000 |
+# MAGIC | `part` | 部品マスタ | p_partkey | 1,000,000 |
+# MAGIC | `customer` | 顧客 | c_custkey | 750,000 |
+# MAGIC | `orders` | 受注 | o_orderkey | **5,000**（サブセット） |
+# MAGIC | `lineitem` | 受注明細 | (l_orderkey, l_linenumber) | **約 20,000**（上記受注の明細のみ） |
 # MAGIC
-# MAGIC > `orders` / `lineitem` は本来巨大なので、ハンズオン用に受注 5,000 件へ絞り込みます（整合を保って明細も対応分のみ）。
+# MAGIC > `orders` は本来 750 万件あるため、ハンズオン用に **5,000 件へ絞り込みます**
+# MAGIC > （整合を保つため `lineitem` も対応する明細だけを取り込みます）。
+# MAGIC > マスタ側はそのまま複製するので、`customer` は 750,000 行になります
+# MAGIC > （`03` の後片付けの確認セルでこの行数が出ます）。
 # MAGIC >
 # MAGIC > 📖 [samples カタログ](https://docs.databricks.com/ja/discover/databricks-datasets.html)
 

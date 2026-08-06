@@ -33,7 +33,7 @@ SCHEMA_PREFIX = "uc_handson"
 # 参加者グループ名（管理者が Account Console で作成したもの）。
 # 03 の RBAC 演習でこのグループに対して GRANT / REVOKE します。
 # admin/00_prepare_environment.py の GROUP_NAME と同じ値にしてください。
-PARTICIPANT_GROUP = "uc_handson_participants"
+PARTICIPANT_GROUP = "trail-uc-handson-grp"
 
 # COMMAND ----------
 

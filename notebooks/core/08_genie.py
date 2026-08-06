@@ -103,6 +103,34 @@ print(f"target = {FQ}")
 # MAGIC    （関数/クエリ名を付けて保存 → Genie が優先的に使い回答が安定）
 # MAGIC 7. 右のチャットで質問を入力 → 生成された SQL（**Show generated code**）と結果を、`4` の検証結果と突き合わせる
 # MAGIC
-# MAGIC これで **なし版のガバナンス 7 項目**（カタログ作成 → アクセス制御 → リネージ → 探索 →
-# MAGIC Delta Sharing → 監査ログ → Genie）は完了です。
-# MAGIC 続けて **`notebooks/federation/`** で、Glue / Redshift を UC 傘下に取り込む **あり版** に進みます。
+# MAGIC ---
+# MAGIC
+# MAGIC ## 🎉 ハンズオン完了
+# MAGIC
+# MAGIC **UC ガバナンスの 7 項目**を一通り体験しました。
+# MAGIC
+# MAGIC | | やったこと |
+# MAGIC |---|---|
+# MAGIC | `00`–`02` | メタデータを整える（スキーマ・説明文・PK/FK） |
+# MAGIC | `03` | アクセス制御（RBAC の GRANT → 管理タグ → ABAC ポリシー） |
+# MAGIC | `04` | データリネージ（来歴の自動追跡） |
+# MAGIC | `05` | データ探索（検索・タグ・Certified） |
+# MAGIC | `06` | Delta Sharing（コピーせず共有） |
+# MAGIC | `07` | 監査ログ（誰が何を見たか） |
+# MAGIC | `08` | Genie（自然言語での活用） |
+# MAGIC
+# MAGIC 💡 **一本の線で繋がっています**: `02` で整えた説明文・制約が `05` の探索と
+# MAGIC この `08` の Genie の精度を上げています。ガバナンスは「守り」だけでなく
+# MAGIC **AI 活用の土台**でもある、というのが今日の要点です。
+# MAGIC
+# MAGIC ### 🧹 後片付け
+# MAGIC
+# MAGIC **`99_cleanup`** を実行して、作成したスキーマ・共有を削除してください
+# MAGIC （冒頭で削除対象を確認 → `CONFIRM = True` に変更 → 再実行）。
+# MAGIC
+# MAGIC ### 📖 この先の話題
+# MAGIC
+# MAGIC 社内の別システム（AWS Glue / Redshift / BigQuery など）を**移動せずに**
+# MAGIC UC 傘下でガバナンスする **Lakehouse Federation** があります。
+# MAGIC 本日はコンセプトのご紹介のみで、動作は別途デモでお見せします
+# MAGIC （実装例はリポジトリの `notebooks/federation/` と `terraform/` にあります）。

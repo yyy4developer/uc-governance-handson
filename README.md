@@ -89,7 +89,7 @@ AWS Glue（Catalog Federation）と Amazon Redshift（Query Federation）を Uni
 **ステップ1: グループを作る**（5分）
 
 1. **Account Console** → **User management** → **Groups** → **Add group**
-   （例: `uc_handson_participants`）
+   （例: `trail-uc-handson-grp`）
 2. **Members** に参加者を追加
 3. ⚠️ **このワークスペースに追加**: ワークスペースの **⚙ Settings** →
    **Identity and access** → **Groups** → **Add group** → 作ったグループを選択
@@ -144,7 +144,7 @@ DEFAULT_CATALOG = "<your_catalog>"
 ### 2. 参加者に権限を付与する（管理者）
 
 **権限はすべて参加者グループ単位で付与します**（`<group>` は Account Console で作成した
-グループ名、既定 `uc_handson_participants`）。ワークスペースの **SQL Editor** で次を実行します。
+グループ名、既定 `trail-uc-handson-grp`）。ワークスペースの **SQL Editor** で次を実行します。
 
 ```sql
 -- カタログ利用と自分のスキーマ作成（00〜05 で必要）
