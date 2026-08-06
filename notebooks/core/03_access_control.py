@@ -269,13 +269,13 @@ else:
 # ALREADY_EXISTS になる（それが正常）。未作成の環境でも動くよう作成も試みる。
 governed_tags = [
     "CREATE GOVERNED TAG uc_handson_sensitivity "
-    "DESCRIPTION 'Hands-on: column sensitivity level (drives column masking)' "
+    "DESCRIPTION '機微度（列マスクの対象を決める）' "
     "VALUES ('confidential','internal','public')",
     "CREATE GOVERNED TAG uc_handson_domain "
-    "DESCRIPTION 'Hands-on: business domain of the asset (also drives row filtering)' "
+    "DESCRIPTION '業務ドメイン（行フィルタの判定にも使用）' "
     "VALUES ('procurement','sales')",
     "CREATE GOVERNED TAG uc_handson_layer "
-    "DESCRIPTION 'Hands-on: data layer' "
+    "DESCRIPTION 'データ層（マスタ / トランザクション / 分析）' "
     "VALUES ('master','transaction','analytics')",
 ]
 for stmt in governed_tags:
@@ -482,7 +482,7 @@ display(spark.sql(f"""
 spark.sql(f"""
   CREATE OR REPLACE POLICY mask_confidential_columns
   ON SCHEMA {FQ}
-  COMMENT 'Mask any column tagged uc_handson_sensitivity=confidential for non-admins'
+  COMMENT 'uc_handson_sensitivity=confidential のタグが付いた列を、管理者以外にはマスクする'
   COLUMN MASK mask_confidential_value
   TO `account users`
   FOR TABLES
@@ -544,7 +544,7 @@ print("✓ policy mask_confidential_columns created")
 spark.sql(f"""
   CREATE OR REPLACE POLICY filter_rows_by_domain
   ON SCHEMA {FQ}
-  COMMENT 'Row filter on columns tagged uc_handson_domain'
+  COMMENT 'uc_handson_domain タグが付いた列で、担当セグメントの行のみに絞り込む'
   ROW FILTER row_filter_by_market_segment
   TO `account users`
   FOR TABLES

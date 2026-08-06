@@ -13,6 +13,13 @@
 > ⚠️ Unity Catalog の principal は **`account users`** です。
 > ワークスペースローカルの `users` グループを指定すると `PRINCIPAL_DOES_NOT_EXIST` になります。
 
+> ⛔ **カタログに `SELECT` / `USE SCHEMA` を付けないでください。**
+> UC の権限はカタログ → スキーマ → テーブルに継承されるため、
+> 付けると参加者全員が互いのテーブルを最初から読めてしまい、
+> `03` の RBAC 演習（付与前は読めない → 付与で読める → REVOKE で読めなくなる）が
+> 成立しなくなります。`USE CATALOG` + `CREATE SCHEMA` で必要十分です
+> （参加者は自分のスキーマの owner になります）。
+
 ---
 
 ## 0. 前提（これが無いと何も始まりません）

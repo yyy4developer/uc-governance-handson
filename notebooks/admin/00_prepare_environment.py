@@ -239,6 +239,24 @@ if not group_ready:
 # MAGIC | `USE CATALOG` + `CREATE SCHEMA`（カタログ） | `00`〜`05`（自分のスキーマを作る） |
 # MAGIC | `CREATE SHARE` + `CREATE RECIPIENT`（メタストア） | `06`（Delta Sharing） |
 # MAGIC | `USE SCHEMA` + `SELECT`（`system.access`） | `07`（監査ログ）※ 任意 |
+# MAGIC
+# MAGIC ### ⛔ カタログに `SELECT` や `USE SCHEMA` を付けないでください
+# MAGIC
+# MAGIC 「参加者が困らないように」と、対象カタログに次を付けたくなるかもしれません。
+# MAGIC
+# MAGIC ```sql
+# MAGIC -- ❌ これをやると 03 の RBAC 演習が成立しなくなります
+# MAGIC GRANT USE SCHEMA, SELECT ON CATALOG <catalog> TO `<group>`;
+# MAGIC ```
+# MAGIC
+# MAGIC UC の権限は **カタログ → スキーマ → テーブル**に継承されます。カタログに `SELECT` を付けると
+# MAGIC **参加者全員が互いのテーブルを最初から読めてしまい**、`03` の
+# MAGIC 「付与前は読めない → 付与すると読める → REVOKE で読めなくなる」という
+# MAGIC 体験ができなくなります。
+# MAGIC
+# MAGIC 参加者は自分で作ったスキーマの **owner** になるので、
+# MAGIC **`USE CATALOG` + `CREATE SCHEMA` だけで `00`〜`05` は問題なく実行できます**
+# MAGIC （必要十分。これ以上は付けない）。
 
 # COMMAND ----------
 
@@ -304,15 +322,15 @@ else:
 governed_tags = [
     ("uc_handson_sensitivity",
      "CREATE GOVERNED TAG uc_handson_sensitivity "
-     "DESCRIPTION 'Hands-on: column sensitivity level (drives column masking)' "
+     "DESCRIPTION '機微度（列マスクの対象を決める）' "
      "VALUES ('confidential','internal','public')"),
     ("uc_handson_domain",
      "CREATE GOVERNED TAG uc_handson_domain "
-     "DESCRIPTION 'Hands-on: business domain of the asset (also drives row filtering)' "
+     "DESCRIPTION '業務ドメイン（行フィルタの判定にも使用）' "
      "VALUES ('procurement','sales')"),
     ("uc_handson_layer",
      "CREATE GOVERNED TAG uc_handson_layer "
-     "DESCRIPTION 'Hands-on: data layer' "
+     "DESCRIPTION 'データ層（マスタ / トランザクション / 分析）' "
      "VALUES ('master','transaction','analytics')"),
 ]
 
