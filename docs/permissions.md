@@ -26,6 +26,16 @@
 
 ---
 
+## ⭐ 一括実行する方法（推奨）
+
+`notebooks/admin/00_prepare_environment` を実行すると、
+このドキュメントの §1〜§2 の内容（権限付与・管理タグ作成・ASSIGN 付与）が**まとめて実施**されます。
+前提チェックと最終確認も含まれるため、まずこちらをお試しください。
+
+以下は、その内容の詳細と、手動で実施する場合の手順です。
+
+---
+
 ## 1. 必須の権限付与（SQL Editor で実行）
 
 ```sql
@@ -109,7 +119,21 @@ CREATE GOVERNED TAG uc_handson_layer
 | `uc_handson_domain` | `procurement` / `sales` | 03（行フィルタの判定列＋分類） |
 | `uc_handson_layer` | `master` / `transaction` / `analytics` | 03（分類）／05（探索） |
 
-ASSIGN 権限の付与（Catalog Explorer から）:
+ASSIGN 権限の付与（SQL）:
+
+```sql
+-- ⚠️ 管理タグはアカウントレベルのリソースです。
+--    account users やワークスペースローカルの users / admins は使えません。
+--    参加者を個別に指定するか、Account Console で作成したグループを指定します。
+GRANT ASSIGN ON GOVERNED TAG uc_handson_sensitivity TO `taro.yamada@example.com`;
+GRANT ASSIGN ON GOVERNED TAG uc_handson_domain      TO `taro.yamada@example.com`;
+GRANT ASSIGN ON GOVERNED TAG uc_handson_layer       TO `taro.yamada@example.com`;
+
+-- 付与状況の確認
+SHOW GRANTS ON GOVERNED TAG uc_handson_sensitivity;
+```
+
+ASSIGN 権限の付与（Catalog Explorer から。まとめて付与したい場合はこちらが楽）:
 
 1. **Catalog** → 上部 **Govern**（盾アイコン）→ **Governed Tags**
 2. アカウント全体に付与する場合: **Account Permissions** → **Grant permissions**

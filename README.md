@@ -79,6 +79,25 @@ AWS Glue（Catalog Federation）と Amazon Redshift（Query Federation）を Uni
 
 ## セットアップ（すべて画面操作）
 
+### 0. ⭐ 管理者向け: 準備 notebook を実行（これ1本で完了）
+
+**`notebooks/admin/00_prepare_environment`** を開いて実行すると、以下がまとめて実施されます。
+
+| # | 内容 |
+|---|---|
+| 1 | 前提チェック（カタログ / `samples` / `system.access`） |
+| 2 | 参加者への権限付与（カタログ / Delta Sharing / 監査ログ） |
+| 3 | 管理タグ 3 種の作成 |
+| 4 | タグの **ASSIGN** 権限付与（⚠️ これが無いと 03 が止まります） |
+| 5 | 最終確認と未完了項目の表示 |
+
+冒頭の設定セルで `TARGET_CATALOG` と参加者（`TAG_ASSIGNEES`）を指定するだけです。
+**アカウント管理者**で実行してください（`system.access` の付与に必要）。
+
+> ⚠️ 権限とタグの反映に数分かかるため、**前日までに**実行してください。
+
+以下は、その notebook が行う内容の詳細です（手動で行う場合の参考）。
+
 ### 1. カタログ名を設定する（管理者、1 行だけ）
 
 `notebooks/core/_config.py` を Databricks の画面で開き、`DEFAULT_CATALOG` を
@@ -207,6 +226,7 @@ cd terraform && terraform destroy
 ```
 uc-governance-handson/
 ├── HANDSON.md                # ⭐ 参加者向けの進行ガイド
+├── notebooks/admin/          # ⭐ 管理者向けの事前準備（権限付与・管理タグ作成）
 ├── notebooks/core/           # ⭐ ハンズオン本体（_config, 00_setup 〜 08_genie, 99_cleanup）
 ├── notebooks/federation/     # 参考実装（ハンズオン対象外）
 ├── terraform/                # 参考実装の環境構築（ハンズオン対象外）
