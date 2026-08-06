@@ -1,19 +1,23 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 02 — カタログ整備（メタデータ設計）
+# MAGIC # 02 — メタデータ設計（説明文と制約）
 # MAGIC
-# MAGIC ガバナンスの土台として、テーブル/カラムに **COMMENT**・**タグ**・**主キー/外部キー制約** を付与します。
-# MAGIC これにより以下が向上します。
+# MAGIC > 🔑 **必要な権限**: 自分のスキーマの owner（追加付与は不要）
 # MAGIC
-# MAGIC - **データ探索（Discovery）**: 検索・カタログ理解が容易に
-# MAGIC - **リネージ**: PK/FK 宣言で関係が明確に
-# MAGIC - **Genie**: メタデータ・制約から自然言語クエリの精度が上がる
+# MAGIC ガバナンスの土台として、テーブル/カラムに **COMMENT（説明文）** と
+# MAGIC **主キー/外部キー制約** を付与します。これにより以下が向上します。
+# MAGIC
+# MAGIC - **データ探索（Discovery）**: 検索・カタログ理解が容易に（`05`）
+# MAGIC - **リネージ**: PK/FK 宣言で関係が明確に（`04`）
+# MAGIC - **Genie**: メタデータ・制約から自然言語クエリの精度が上がる（`08`）
 # MAGIC
 # MAGIC 対象は `01_ingest_data` で取り込んだ TPC-H（部品調達・受注）テーブル群です。
 # MAGIC
+# MAGIC > 💡 **タグは `03_access_control` で扱います**。タグはアクセス制御（ABAC）と
+# MAGIC > 一体で設計するものなので、まとめて 1 箇所で学ぶ構成にしています。
+# MAGIC
 # MAGIC > 📖 [テーブル/カラムのコメント](https://docs.databricks.com/ja/data-governance/unity-catalog/index.html) ／
-# MAGIC > [主キー・外部キー制約](https://docs.databricks.com/ja/tables/constraints.html) ／
-# MAGIC > [タグによるガバナンス](https://docs.databricks.com/ja/database-objects/tags.html)
+# MAGIC > [主キー・外部キー制約](https://docs.databricks.com/ja/tables/constraints.html)
 
 # COMMAND ----------
 
@@ -122,100 +126,6 @@ for stmt in pk_fk:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## タグ付け（分類・検索用）
-# MAGIC
-# MAGIC テーブル・列にタグを付けて、後から**検索・分類**できるようにします。
-# MAGIC
-# MAGIC ### まず「管理タグ（Governed Tag）」を定義します
-# MAGIC
-# MAGIC Databricks のタグには 2 種類あり、本ハンズオンでは**管理タグ**を使います。
-# MAGIC
-# MAGIC | | 通常タグ | **管理タグ（本ハンズオン）** |
-# MAGIC |---|---|---|
-# MAGIC | 作り方 | `SET TAGS` でその場で作られる | **事前に `CREATE GOVERNED TAG` で定義** |
-# MAGIC | 許可値 | なし（何でも入る＝表記ゆれが起きる） | **定義した値のみ**（統制される） |
-# MAGIC | 検索フィルタの候補 | 出ない（構文検索のみ） | **候補に出る**（UI で選べる） |
-# MAGIC | ABAC ポリシー | 使えない | **使える**（03 で活用） |
-# MAGIC
-# MAGIC 組織で運用するなら管理タグが基本です。「誰かが `Sales` と書き、別の人が `sales` と書く」
-# MAGIC ような事故を防げますし、後から**タグを起点に一括で保護**（03 の ABAC）できます。
-# MAGIC
-# MAGIC 定義するタグ:
-# MAGIC - `uc_handson_domain` … 業務ドメイン（`procurement` / `sales`）
-# MAGIC - `uc_handson_layer` … データ層（`master` / `transaction` / `analytics`）
-# MAGIC - `uc_handson_sensitivity` … 列の機微度（`confidential` / `internal` / `public`）
-# MAGIC
-# MAGIC > 📖 [管理タグ (Governed Tags)](https://docs.databricks.com/ja/admin/governed-tags/)
-# MAGIC >
-# MAGIC > 🧑‍🤝‍🧑 管理タグは**アカウント全体で共有**されるリソースです。複数人で実施する場合、
-# MAGIC > **最初の人が作成し、2 人目以降は「既に存在します」と表示されます**（正常な動作）。
-# MAGIC > タグ定義は全員で共有し、付与先は各自のテーブルなので影響し合いません。
-# MAGIC >
-# MAGIC > ⚠️ キーに `uc_handson_` を付けているのは、`domain` や `sensitivity` といった一般的な名前が
-# MAGIC > 既にアカウントで使われている可能性があるためです（衝突すると別の許可値に縛られます）。
-
-# COMMAND ----------
-
-# 管理タグを定義（アカウント共有リソース。2 人目以降は ALREADY_EXISTS になるので握りつぶす）
-# ※ CREATE GOVERNED TAG は IF NOT EXISTS 非対応。DESCRIPTION と VALUES を使う。
-governed_tags = [
-    "CREATE GOVERNED TAG uc_handson_domain "
-    "DESCRIPTION 'Hands-on: business domain of the asset' "
-    "VALUES ('procurement','sales')",
-    "CREATE GOVERNED TAG uc_handson_layer "
-    "DESCRIPTION 'Hands-on: data layer' "
-    "VALUES ('master','transaction','analytics')",
-    "CREATE GOVERNED TAG uc_handson_sensitivity "
-    "DESCRIPTION 'Hands-on: column sensitivity level' "
-    "VALUES ('confidential','internal','public')",
-]
-for stmt in governed_tags:
-    tag_name = stmt.split()[3]
-    try:
-        spark.sql(stmt)
-        print(f"✓ 管理タグを作成しました: {tag_name}")
-    except Exception as e:
-        if "ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
-            print(f"✓ 管理タグは既に存在します（他の参加者が作成済み）: {tag_name} — そのまま使えます")
-        else:
-            print(f"⚠️ {tag_name}: {str(e).splitlines()[0][:120]}")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### 定義したタグをテーブル・列に付与します
-# MAGIC
-# MAGIC 許可値の外の値を入れると**弾かれます**（統制が効いている証拠。03 でさらに詳しく扱います）。
-
-# COMMAND ----------
-
-tag_stmts = [
-    "ALTER TABLE part     SET TAGS ('uc_handson_domain' = 'procurement', 'uc_handson_layer' = 'master')",
-    "ALTER TABLE supplier SET TAGS ('uc_handson_domain' = 'procurement', 'uc_handson_layer' = 'master')",
-    "ALTER TABLE customer SET TAGS ('uc_handson_domain' = 'sales', 'uc_handson_layer' = 'master')",
-    "ALTER TABLE orders   SET TAGS ('uc_handson_domain' = 'sales', 'uc_handson_layer' = 'transaction')",
-    "ALTER TABLE lineitem SET TAGS ('uc_handson_domain' = 'sales', 'uc_handson_layer' = 'transaction')",
-    # 列レベルタグ: 機微カラムの目印（03 の列マスクでは別途 管理タグ を使います）
-    "ALTER TABLE customer ALTER COLUMN c_acctbal SET TAGS ('uc_handson_sensitivity' = 'confidential')",
-    "ALTER TABLE supplier ALTER COLUMN s_acctbal SET TAGS ('uc_handson_sensitivity' = 'confidential')",
-]
-for stmt in tag_stmts:
-    target = stmt.split("SET TAGS")[0].replace("ALTER TABLE", "").strip()
-    try:
-        spark.sql(stmt)
-        print(f"✓ tag set: {target}")
-    except Exception as e:
-        msg = str(e)
-        if "not an allowed value for tag policy key" in msg:
-            # 管理タグと衝突。許可値の一覧をそのまま見せる（原因が分かるように）
-            print(f"⚠️ {target}: 管理タグの許可値に無い値です →")
-            print("   ", msg[msg.find("Tag value"):].splitlines()[0][:220])
-        else:
-            print(f"· skip: {target}: {msg.splitlines()[0][:110]}")
-
-# COMMAND ----------
-
-# MAGIC %md
 # MAGIC ## 確認
 
 # COMMAND ----------
@@ -261,36 +171,12 @@ for stmt in tag_stmts:
 # MAGIC >
 # MAGIC > ⚠️ AI の提案は**必ず内容を確認**してから採用してください（誤った説明が付くと逆効果）。
 # MAGIC
-# MAGIC **B. タグを UI で付ける（管理タグは選択式になります）**
-# MAGIC 1. `orders` テーブルの **Overview** タブ右側 **Tags** の **＋ Add tags**（既にある場合は ✏️）をクリック
-# MAGIC 2. **Key** のドロップダウンを開く → **Governed** セクションに 🔒 付きで
-# MAGIC    `uc_handson_domain` / `uc_handson_layer` が**候補として並びます**（上のセルで定義したため）
-# MAGIC 3. `uc_handson_domain` を選ぶと、**Value も許可値から選択**できます（`procurement` / `sales`）
-# MAGIC 4. **Add** → **Save**
-# MAGIC
-# MAGIC > 💡 これが管理タグの利点です。**自由入力ではなく選択式**になるので、表記ゆれが起きません。
-# MAGIC > 通常タグ（`CREATE GOVERNED TAG` していないキー）は **Other** セクションに出ます。
-# MAGIC
-# MAGIC **B-2. 管理タグの一覧・許可値を確認する**
-# MAGIC 1. 左メニュー **Catalog** → 上部の **Govern**（盾アイコン）→ **Governed Tags**
-# MAGIC 2. `uc_handson_domain` をクリック → 許可値と、どこで使われているか（利用状況）が見えます
-# MAGIC
-# MAGIC **B-3. 付けたタグはどこで見えるか**
-# MAGIC
-# MAGIC | 確認したい方法 | 場所 |
-# MAGIC |---|---|
-# MAGIC | 付与状況を見る | テーブル/列の **Overview** タブ → **Tags** 欄 |
-# MAGIC | タグで**検索**する | **画面上部の検索窓**（`Cmd/Ctrl + P`）で `tag:uc_handson_domain:sales` |
-# MAGIC | 検索結果を絞り込む | 検索結果ページ → **Type: Tables** → **Tag** フィルタで選択 |
-# MAGIC | 一覧で確認する | SQL（`system.information_schema.table_tags` / `column_tags`）|
-# MAGIC
-# MAGIC > ⚠️ **Catalog Explorer 左サイドバーのフィルタ欄では、タグ検索はできません**（公式仕様）。
-# MAGIC > タグで探すときは**上部の検索窓**を使います。詳しくは `05_discovery` で扱います。
-# MAGIC 3. カラムのタグは、カラム行の右端 **⋮（kebab）→ Edit tags** から同様に付与
-# MAGIC
-# MAGIC **C. 主キー/外部キーの確認**
+# MAGIC **B. 主キー/外部キーの確認**
 # MAGIC - PK/FK は SQL（`ALTER TABLE ... ADD CONSTRAINT`）での宣言が基本です。
 # MAGIC   UI では **Details** タブや **Entity Relationship**（ER 図）で宣言済みの関係を確認できます。
 # MAGIC
-# MAGIC これで**土台づくりは完了**です（00 → 01 → 02）。
-# MAGIC 以降の `03`〜`08` は UI で 1 つずつ実行しながらガバナンス機能を体験します。
+# MAGIC これで**メタデータの記述**は完了です（00 → 01 → 02）。
+# MAGIC
+# MAGIC 次の **`03_access_control`** では、
+# MAGIC **アクセス制御（RBAC → タグ設計 → ABAC）** を体験します。
+# MAGIC タグはアクセス制御と一体で扱うため、`03` にまとめてあります。

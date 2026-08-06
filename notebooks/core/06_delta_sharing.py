@@ -2,6 +2,9 @@
 # MAGIC %md
 # MAGIC # 06 — Delta Sharing（組織間のデータ共有）
 # MAGIC
+# MAGIC > 🔑 **必要な権限**: メタストアへの **`CREATE SHARE`** と **`CREATE RECIPIENT`**
+# MAGIC > （既定では付いていません。管理者が `GRANT ... ON METASTORE TO \`account users\`` で付与）
+# MAGIC
 # MAGIC **Delta Sharing** で、データをコピーせずに組織内外へ安全に共有します。
 # MAGIC
 # MAGIC - **D2D**（Databricks-to-Databricks）: 相手も Databricks の場合。metastore ID で接続

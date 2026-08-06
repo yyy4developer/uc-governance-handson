@@ -16,9 +16,9 @@ Databricks 標準サンプル `samples.tpch`（部品調達・受注データ）
 
 カバーする機能:
 
-1. メタデータ設計（COMMENT / タグ / 主キー・外部キー、**AI 生成コメント**）
-2. アクセス制御 — 階層的 GRANT、管理タグ、**Tag Policies（許可値の統制）**、
-   **ABAC**（タグ駆動の行フィルタ・列マスクポリシー）
+1. メタデータ設計（COMMENT / 主キー・外部キー、**AI 生成コメント**）
+2. アクセス制御 — **RBAC**（GRANT / REVOKE と権限の継承）、管理タグと
+   **Tag Policies（許可値の統制）**、**ABAC**（タグ駆動の行フィルタ・列マスク）
 3. データリネージ（テーブル / 列レベル）
 4. データ探索（検索・タグ・Certified・Insights）
 5. 組織間データ共有（Delta Sharing D2D / D2O）
@@ -111,7 +111,7 @@ GRANT SELECT     ON SCHEMA system.access TO `account users`;
 > ⚠️ Unity Catalog の principal は `account users` です。ワークスペースローカルの
 > `users` グループを指定すると `PRINCIPAL_DOES_NOT_EXIST` になります。
 
-**さらに管理タグ（Governed Tag）の権限が必要です**（02 と 03 で使用）。
+**さらに管理タグ（Governed Tag）の権限が必要です**（03 で使用）。
 既定ではワークスペース管理者しか作成・付与できないため、講師が事前にタグを作り、
 参加者に **ASSIGN** 権限を付与するか、参加者を管理者グループに入れます。
 
@@ -131,9 +131,10 @@ GRANT SELECT     ON SCHEMA system.access TO `account users`;
 > そのまま実行するだけで、スキーマ作成からデータ取り込みまで完了します。
 > 講師が事前確認する場合も、同じノートブックを順に実行するだけです。
 
-#### アクセス制御デモ（03）は ABAC ポリシーベース
+#### アクセス制御（03）は RBAC → ABAC の二段構成
 
-`03_access_control` は **属性ベースアクセス制御（ABAC）** で構成しています。
+`03_access_control` は前半で **RBAC**（`GRANT` / `REVOKE` と権限の継承。隣の参加者と
+相互付与するペア演習）、後半で **ABAC** を扱います。ABAC では
 **管理タグ（Governed Tag）を列に付け、タグ条件でポリシーを1本張る**と、スキーマ配下の
 該当タグを持つ列すべてに行フィルタ/列マスクが自動適用されます（`SET ROW FILTER`/`SET MASK`
 をテーブルごとに付ける従来方式との違いがデモの見どころ）。
@@ -144,18 +145,15 @@ GRANT SELECT     ON SCHEMA system.access TO `account users`;
 - 「管理者は全件・実値、営業は担当セグメントのみ」という**両側**を見せたい場合のみ、
   以下のグループを作成し、片方のユーザーを管理者グループに入れて別ユーザーで確認します。
 
-```bash
-# グループ作成（例。両側を実演する場合のみ）
-for g in data_governance_admins sales_automobile sales_building sales_machinery; do
-  databricks groups create --display-name "$g"
-done
-#   Account Console / SCIM で <your-user-id> を data_governance_admins に追加
-```
+グループは **Account Console → User management → Groups** から作成し、
+ワークスペースに割り当てます（`data_governance_admins` / `sales_automobile` /
+`sales_building` / `sales_machinery`）。片方のユーザーを管理者グループに入れてください。
 
 - 使用する管理タグ（デモ専用キー。アカウント内で衝突しないよう prefix 付き）:
-  `uc_handson_pii`（列マスク対象）/ `uc_handson_segment`（行フィルタ判定列）
-- ⚠️ **03 の末尾で必ずポリシーとタグを解除**します（付けたまま 04 に進むと `customer` が
-  0 行/NULL に見え、04 の JOIN 結果が空になるため）。ノートブックの「8. 後片付け」セルが自動実行します。
+  `uc_handson_sensitivity`（列マスク対象）/ `uc_handson_domain`（行フィルタ判定列・分類）/ `uc_handson_layer`（分類）
+- ⚠️ **03 の末尾で必ずポリシーを解除**します（付けたまま 04 に進むと `customer` が
+  0 行/NULL に見え、04 の JOIN 結果が空になるため）。ノートブックの「9. 後片付け」セルが自動実行します。
+  タグは `05` の探索で使うので残します。
 - ⚠️ グループメンバーシップやタグが SQL エンジンに反映されるまで**数分**かかることがあります。
 - ABAC には **Governed Tag が必須**（通常タグ不可）。`CREATE GOVERNED TAG` は `IF NOT EXISTS` 非対応。
 - 管理タグは**アカウント全体で共有**されるため、複数人で実施すると 2 人目以降は
@@ -188,13 +186,12 @@ terraform output      # 作成された foreign catalog 名を確認
 
 ## クリーンアップ
 
-参加者が作ったスキーマを消す場合は、**SQL Editor** で:
+**`notebooks/core/99_cleanup` を実行**すると、自分が作ったものを一括削除できます
+（ポリシー・関数・Delta Share・スキーマごと）。削除対象を先に一覧表示し、
+`CONFIRM = True` にしてから実行する二段構えです。
 
-```sql
-DROP SCHEMA IF EXISTS <catalog>.uc_handson_<user> CASCADE;
-```
-
-Git folder はワークスペースの画面から削除できます（**⋮ → Delete**）。
+管理タグはアカウント共有のため既定では残します（全参加者の完了後、講師が任意で削除）。
+Genie スペースと Git folder は画面から削除してください（notebook 内に手順あり）。
 
 参考実装の Federation を試した場合のみ:
 
@@ -209,7 +206,7 @@ cd terraform && terraform destroy
 ```
 uc-governance-handson/
 ├── HANDSON.md                # ⭐ 参加者向けの進行ガイド
-├── notebooks/core/           # ⭐ ハンズオン本体（_config, 00_setup 〜 08_genie）
+├── notebooks/core/           # ⭐ ハンズオン本体（_config, 00_setup 〜 08_genie, 99_cleanup）
 ├── notebooks/federation/     # 参考実装（ハンズオン対象外）
 ├── terraform/                # 参考実装の環境構築（ハンズオン対象外）
 └── docs/architecture.md      # アーキテクチャ図

@@ -2,6 +2,9 @@
 # MAGIC %md
 # MAGIC # 08 — Genie 体験（自然言語でのデータ活用）
 # MAGIC
+# MAGIC > 🔑 **必要な権限**: SQL Warehouse への `CAN_USE` と、対象テーブルの `SELECT`
+# MAGIC > （自分のスキーマなので満たしています）
+# MAGIC
 # MAGIC **Genie** は、業務ユーザーが自然言語でデータに質問できる AI/BI 機能です。
 # MAGIC UC のメタデータ・コメント・PK/FK 制約（`02` で整備済み）を活用して精度の高い SQL を生成します。
 # MAGIC

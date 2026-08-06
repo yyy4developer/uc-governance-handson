@@ -2,6 +2,8 @@
 # MAGIC %md
 # MAGIC # 05 — データ探索（Discovery）
 # MAGIC
+# MAGIC > 🔑 **必要な権限**: 自分のスキーマの owner（追加付与は不要）
+# MAGIC
 # MAGIC Unity Catalog 上のデータ資産を **検索・発見** する方法を体験します。
 # MAGIC
 # MAGIC - `information_schema` によるメタデータ探索（プログラム的）
@@ -54,7 +56,7 @@ print(f"target = {FQ}")
 # MAGIC %md
 # MAGIC ## 3. タグによる絞り込み
 # MAGIC
-# MAGIC `02_catalog_schema` で付けたタグ（`uc_handson_domain`, `uc_handson_layer`）で資産を分類・発見します。
+# MAGIC `03_access_control` で付けたタグ（`uc_handson_domain` / `uc_handson_layer` / `uc_handson_sensitivity`）で資産を分類・発見します。
 
 # COMMAND ----------
 
@@ -83,7 +85,7 @@ print(f"target = {FQ}")
 # MAGIC
 # MAGIC **B. タグで検索する（⚠️ 上部の検索窓から行います）**
 # MAGIC
-# MAGIC `02` で定義した**管理タグ**を使って資産を絞り込みます。方法は 2 つあります。
+# MAGIC `03` で定義した**管理タグ**を使って資産を絞り込みます。方法は 2 つあります。
 # MAGIC
 # MAGIC *方法1: 検索構文で直接指定*
 # MAGIC
@@ -93,7 +95,7 @@ print(f"target = {FQ}")
 # MAGIC | キーと値の両方 | `tag:uc_handson_domain:procurement` |
 # MAGIC
 # MAGIC 1. `Cmd/Ctrl + P` → `tag:uc_handson_domain:procurement` と入力
-# MAGIC 2. `part` / `supplier` がヒットすることを確認（`02` で付けたタグが効く）
+# MAGIC 2. `part` / `supplier` がヒットすることを確認（`03` で付けたタグが効く）
 # MAGIC
 # MAGIC *方法2: フィルタから選択（管理タグなら候補に出ます）*
 # MAGIC 1. `Cmd/Ctrl + P` → Enter で **Search results** ページを開く

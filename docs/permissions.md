@@ -59,7 +59,7 @@ GRANT SELECT     ON SCHEMA system.access TO `account users`;
 
 ## 2. 管理タグ（Governed Tag）の権限 — ⚠️ 最も注意が必要
 
-`02_catalog_schema` と `03_access_control` は**管理タグを作成して付与**します。
+`03_access_control` が**管理タグを作成して付与**します。
 必要な権限は 2 種類あり、**既定ではワークスペース管理者しか持っていません**。
 
 | 権限 | 何のために | 既定で持つ人 |
@@ -79,11 +79,9 @@ GRANT SELECT     ON SCHEMA system.access TO `account users`;
 
 | タグキー | 許可値 | 使う場所 |
 |---|---|---|
-| `uc_handson_domain` | `procurement` / `sales` | 02（分類） |
-| `uc_handson_layer` | `master` / `transaction` / `analytics` | 02（分類） |
-| `uc_handson_sensitivity` | `confidential` / `internal` / `public` | 02（分類） |
-| `uc_handson_pii` | `confidential` / `restricted` | 03（列マスク） |
-| `uc_handson_segment` | `segment_key` | 03（行フィルタ） |
+| `uc_handson_sensitivity` | `confidential` / `internal` / `public` | 03（列マスクの対象） |
+| `uc_handson_domain` | `procurement` / `sales` | 03（行フィルタの判定列＋分類） |
+| `uc_handson_layer` | `master` / `transaction` / `analytics` | 03（分類）／05（探索） |
 
 ASSIGN 権限の付与（Catalog Explorer から）:
 
@@ -108,8 +106,8 @@ ASSIGN 権限の付与（Catalog Explorer から）:
 |---|---|---|
 | `00_setup` | スキーマ・Volume 作成、COMMENT | `USE CATALOG` + `CREATE SCHEMA`（自分が作ったスキーマの owner になる） |
 | `01_ingest_data` | `samples.tpch` から CTAS | 上記 + `samples` は権限不要 |
-| `02_catalog_schema` | COMMENT / **管理タグ** / PK・FK | 上記 + **管理タグの CREATE と ASSIGN**（§2） |
-| `03_access_control` | GRANT / **管理タグ** / **ABAC ポリシー** | 上記 + スキーマ owner（ポリシー作成に必要。自分のスキーマなので満たす） |
+| `02_catalog_schema` | COMMENT / PK・FK | 上記のみ |
+| `03_access_control` | GRANT / **管理タグ** / **ABAC ポリシー** | 上記 + **管理タグの CREATE と ASSIGN**（§2）+ スキーマ owner（自分のスキーマなので満たす） |
 | `04_lineage` | テーブル・ビュー作成 | スキーマ owner（満たす） |
 | `05_discovery` | 検索・タグ確認・Certify | スキーマ owner（満たす） |
 | `06_delta_sharing` | **Share / Recipient 作成** | **`CREATE SHARE` + `CREATE RECIPIENT` ON METASTORE**（§1-②） |
@@ -129,7 +127,7 @@ ASSIGN 権限の付与（Catalog Explorer から）:
 - [ ] `GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <catalog> TO \`account users\`` 実行済み
 - [ ] `GRANT CREATE SHARE / CREATE RECIPIENT ON METASTORE TO \`account users\`` 実行済み
 - [ ] `system.access` の `USE SCHEMA` + `SELECT` 付与済み（または 07 をデモに切替と決定）
-- [ ] 管理タグ 5 種が作成済み、かつ参加者に **ASSIGN** 付与済み（または参加者を admins に）
+- [ ] 管理タグ 3 種が作成済み、かつ参加者に **ASSIGN** 付与済み（または参加者を admins に）
 - [ ] `_config.py` の `DEFAULT_CATALOG` が対象カタログ名になっている
 - [ ] SQL Warehouse が起動する（参加者数に対してサイズが十分か）
 - [ ] 講師が参加者と同じ権限のテストアカウントで `00`〜`08` を通し実行できた

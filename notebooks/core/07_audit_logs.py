@@ -2,6 +2,9 @@
 # MAGIC %md
 # MAGIC # 07 — 監査ログの確認
 # MAGIC
+# MAGIC > 🔑 **必要な権限**: `system.access` スキーマへの **`USE SCHEMA`** と **`SELECT`**
+# MAGIC > （既定ではアカウント／メタストア管理者のみ。`system` スキーマの有効化も必要）
+# MAGIC
 # MAGIC Unity Catalog の操作は **system tables**（`system.access.audit`）に記録されます。
 # MAGIC 「誰が・いつ・何に」アクセスしたかを SQL で確認します。
 # MAGIC

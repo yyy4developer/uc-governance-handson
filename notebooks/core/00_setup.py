@@ -2,6 +2,9 @@
 # MAGIC %md
 # MAGIC # 00 — セットアップ
 # MAGIC
+# MAGIC > 🔑 **必要な権限**: カタログへの `USE CATALOG` と `CREATE SCHEMA`
+# MAGIC > （作成したスキーマの owner になるので、以降の操作は基本これで足ります）
+# MAGIC
 # MAGIC UC ガバナンス ハンズオン（**Federation なし版**）の土台を用意します。
 # MAGIC 対象カタログ配下に **スキーマ** と **Volume** を作成します。
 # MAGIC

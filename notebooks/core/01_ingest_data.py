@@ -2,8 +2,11 @@
 # MAGIC %md
 # MAGIC # 01 — データ取り込み（samples.tpch → 自スキーマ）
 # MAGIC
+# MAGIC > 🔑 **必要な権限**: 自分のスキーマの owner（`00_setup` で作成済み）。
+# MAGIC > `samples` カタログの読み取りに権限設定は不要です
+# MAGIC
 # MAGIC Databricks 標準サンプル **`samples.tpch`**（部品調達・受注データ）から、自分のスキーマに
-# MAGIC native Delta テーブルとして取り込みます。以降のガバナンス操作（COMMENT / タグ / GRANT /
+# MAGIC native Delta テーブルとして取り込みます。以降のガバナンス操作（COMMENT / 制約 / GRANT / タグ /
 # MAGIC 行フィルタ / リネージ / 共有）は、この自スキーマ上のテーブルで行います。
 # MAGIC
 # MAGIC | テーブル | 内容 | 主キー | 行数（サブセット） |
@@ -169,5 +172,5 @@ print("  UC は『どこに何があり、誰が使えるか』を管理して�
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 次のノートブック **`02_catalog_schema`** で COMMENT・タグ・主キー/外部キー制約を付与し、
+# MAGIC 次のノートブック **`02_catalog_schema`** で COMMENT・主キー/外部キー制約を付与し、
 # MAGIC ガバナンスの土台（リネージ・Genie の精度向上）を整えます。

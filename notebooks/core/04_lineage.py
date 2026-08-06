@@ -2,6 +2,8 @@
 # MAGIC %md
 # MAGIC # 04 — データリネージ
 # MAGIC
+# MAGIC > 🔑 **必要な権限**: 自分のスキーマの owner（追加付与は不要）
+# MAGIC
 # MAGIC マスタ × トランザクションを JOIN して分析テーブル **`order_analysis_summary`** を作成し、
 # MAGIC Unity Catalog が自動で捕捉する **テーブル/列レベルのリネージ** を可視化します。
 # MAGIC

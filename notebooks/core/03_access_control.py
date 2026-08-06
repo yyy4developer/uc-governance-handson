@@ -1,30 +1,45 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 03 — アクセス制御（ABAC / ポリシーベース）
+# MAGIC # 03 — アクセス制御（RBAC → タグ → ABAC）
 # MAGIC
-# MAGIC Unity Catalog の **属性ベースアクセス制御（ABAC）** を体験します。
-# MAGIC 従来は「テーブルごとに `SET ROW FILTER` / `SET MASK` を個別付与」でしたが、ABAC では
-# MAGIC **管理タグ（Governed Tag）を列に付け、タグに対してポリシーを1本張る**だけで、
-# MAGIC 対象スキーマ配下の**該当タグを持つ全テーブル・全列に自動適用**されます（付け外しはタグ操作だけ）。
+# MAGIC > 🔑 **必要な権限**: 自分のスキーマの owner ＋ **管理タグの `CREATE` と `ASSIGN`**
+# MAGIC > （管理タグはアカウントレベルの権限。既定ではワークスペース管理者のみ持ちます。
+# MAGIC > 参加者が一般ユーザーの場合、講師が事前にタグを作成し `ASSIGN` を付与してください）
 # MAGIC
-# MAGIC 1. **階層的な GRANT**（カタログ → スキーマ → テーブル、権限は継承）
-# MAGIC 2. **管理タグ（Governed Tag）の作成**（UI / SQL 両方）
-# MAGIC 3. **Tag Policies — 許可値による統制**（タグの付け間違い・表記ゆれを防ぐ）
-# MAGIC 4. **列へのタグ付与**
-# MAGIC 5. **タグ駆動の列マスク（ABAC COLUMN MASK ポリシー）**: `uc_handson_pii=confidential` タグの付いた列を自動マスク
-# MAGIC 6. **タグ駆動の行フィルタ（ABAC ROW FILTER ポリシー）**: `uc_handson_segment` タグの付いた列で行を制御
-# MAGIC 7. **適用中のポリシー一覧**
-# MAGIC 8. **後片付け**（04 を壊さないため、ポリシーとタグを必ず解除）
+# MAGIC Unity Catalog のアクセス制御を、**2 つの方式**で体験します。
+# MAGIC
+# MAGIC | | **RBAC**（ロールベース） | **ABAC**（属性ベース） |
+# MAGIC |---|---|---|
+# MAGIC | 考え方 | 「**誰に**」「**どのオブジェクトへ**」権限を付ける | 「**どんな属性（タグ）を持つ列**」を保護するかを決める |
+# MAGIC | 書き方 | `GRANT SELECT ON TABLE ... TO ...` | タグを付け、タグ条件でポリシーを 1 本張る |
+# MAGIC | 得意なこと | 明示的で分かりやすい。基本はこれ | **対象が増えても書き換え不要**（大規模向き） |
+# MAGIC | 例 | 「営業チームに受注テーブルの参照を許可」 | 「機微とタグ付けした列は、管理者以外マスク」 |
+# MAGIC
+# MAGIC RBAC が土台で、ABAC は**その上でよりきめ細かく・スケールさせる**ための仕組みです。
+# MAGIC
+# MAGIC ## このノートブックの流れ
+# MAGIC
+# MAGIC | # | 内容 | 方式 |
+# MAGIC |---|---|---|
+# MAGIC | 1 | 自分の権限を確認する（owner とは何か） | RBAC |
+# MAGIC | 2 | **GRANT / REVOKE を体験**（階層と継承） | RBAC |
+# MAGIC | 3 | **管理タグ（Governed Tag）の設計と作成** | 準備 |
+# MAGIC | 4 | **Tag Policies — 許可値による統制** | 準備 |
+# MAGIC | 5 | テーブル・列へのタグ付与 | 準備 |
+# MAGIC | 6 | **タグ駆動の列マスク**（ABAC COLUMN MASK） | ABAC |
+# MAGIC | 7 | **タグ駆動の行フィルタ**（ABAC ROW FILTER） | ABAC |
+# MAGIC | 8 | 適用中のポリシー一覧 | 確認 |
+# MAGIC | 9 | **後片付け**（⚠️ 04 を壊さないため必ず実行） | — |
 # MAGIC
 # MAGIC ペルソナ（グループ）: `data_governance_admins` / `sales_automobile` / `sales_building` / `sales_machinery`
 # MAGIC
-# MAGIC > 📖 [属性ベースのアクセス制御 (ABAC)](https://docs.databricks.com/ja/data-governance/unity-catalog/abac/index.html) ／
-# MAGIC > [行フィルタ・列マスクポリシーの管理](https://docs.databricks.com/ja/data-governance/unity-catalog/abac/policies.html) ／
-# MAGIC > [管理タグ (Governed Tags)](https://docs.databricks.com/ja/admin/governed-tags/) ／
-# MAGIC > [CREATE GOVERNED TAG](https://docs.databricks.com/ja/sql/language-manual/sql-ref-syntax-ddl-create-governed-tag.html)
+# MAGIC > 📖 [権限の管理（GRANT）](https://docs.databricks.com/ja/data-governance/unity-catalog/manage-privileges/index.html) ／
+# MAGIC > [属性ベースのアクセス制御 (ABAC)](https://docs.databricks.com/ja/data-governance/unity-catalog/abac/index.html) ／
+# MAGIC > [行フィルタ・列マスクポリシー](https://docs.databricks.com/ja/data-governance/unity-catalog/abac/policies.html) ／
+# MAGIC > [管理タグ (Governed Tags)](https://docs.databricks.com/ja/admin/governed-tags/)
 # MAGIC
-# MAGIC ⚠️ **ABAC は Governed Tag（管理タグ）が必須**（通常のタグ不可）。管理タグはアカウント単位で共有されるため、
-# MAGIC このデモでは衝突回避のため専用キー `uc_handson_pii` / `uc_handson_segment` を使います。
+# MAGIC ⚠️ **ABAC は管理タグ（Governed Tag）が必須**です（通常のタグでは使えません）。
+# MAGIC 管理タグはアカウント単位で共有されるため、衝突回避のため `uc_handson_` prefix を付けています。
 # MAGIC
 # MAGIC ⚠️ **構文メモ**: `CREATE / DROP / SHOW POLICY ... ON SCHEMA` は **修飾名を直書き**します
 # MAGIC （`IDENTIFIER()` 関数や `:catalog` パラメタは不可）。本ノートブックはポリシー系を Python の
@@ -43,16 +58,28 @@ print(f"target = {FQ}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 0. 実行者のグループ所属を確認
+# MAGIC # 【RBAC パート】
 # MAGIC
-# MAGIC ABAC ポリシーは `is_account_group_member(...)` でアクセス可否を判定します。まず自分がどのグループに
-# MAGIC 属しているかを確認します。**多くの sandbox では下記が全て `false`** になります
-# MAGIC （workspace admin ≠ アカウントグループ `admins`）。その場合、この後のポリシー適用で
-# MAGIC **自分自身がマスク/フィルタされる側**になり、「ABAC が効いている」様子をそのまま観察できます。
+# MAGIC まずは基本の **RBAC（ロールベースアクセス制御）** —
+# MAGIC 「**誰に**」「**何を**」許可するかを明示的に指定する方式です。
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 1. 自分の権限を確認する（owner とは何か）
+# MAGIC
+# MAGIC あなたは自分のスキーマを**自分で作った**ので、そのスキーマの **owner（所有者）** です。
+# MAGIC owner は配下のオブジェクトに対してすべての権限を持ちます。
+# MAGIC だから今まで GRANT なしでテーブルを作ったり読んだりできていました。
+
+# COMMAND ----------
+
+display(spark.sql(f"SHOW GRANTS ON SCHEMA {FQ}"))
 
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC -- 自分が誰で、どのグループに属しているか（後の ABAC で使います）
 # MAGIC SELECT
 # MAGIC   current_user()                                    AS me,
 # MAGIC   is_account_group_member('admins')                 AS in_admins,
@@ -62,73 +89,185 @@ print(f"target = {FQ}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 1. 階層的な GRANT
-# MAGIC
-# MAGIC カタログ/スキーマへの `USE` と、テーブルへの `SELECT` を付与します。権限は階層で継承されます。
-# MAGIC （グループ名は環境に合わせて置き換えてください。存在しない場合は手順の理解に留めます）
+# MAGIC 💡 `is_account_group_member(...)` が**すべて `false` でも問題ありません**。
+# MAGIC その場合、後半の ABAC で**自分自身がマスク/フィルタされる側**になるので、
+# MAGIC 「制御が効いている」様子をそのまま観察できます。
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ```sql
-# MAGIC -- 例: データガバナンス管理者にスキーマ全体の参照を付与
-# MAGIC GRANT USE CATALOG ON CATALOG <catalog> TO `data_governance_admins`;
-# MAGIC GRANT USE SCHEMA  ON SCHEMA  <catalog>.<schema> TO `data_governance_admins`;
-# MAGIC GRANT SELECT      ON SCHEMA  <catalog>.<schema> TO `data_governance_admins`;
+# MAGIC ## 2. GRANT を体験する（権限の階層と継承）
 # MAGIC
-# MAGIC -- 営業（セグメント別）には顧客・受注を参照付与（行は後述の行フィルタで自動的に絞られる）
-# MAGIC GRANT SELECT ON TABLE <catalog>.<schema>.customer TO `sales_automobile`;
-# MAGIC GRANT SELECT ON TABLE <catalog>.<schema>.orders   TO `sales_automobile`;
+# MAGIC Unity Catalog の権限は **カタログ → スキーマ → テーブル** の階層で継承されます。
+# MAGIC 下位のオブジェクトを読むには、**上位への `USE` 権限も必要**です。
+# MAGIC
 # MAGIC ```
+# MAGIC   カタログ    USE CATALOG   ← ここを通れないと中が見えない
+# MAGIC     └ スキーマ  USE SCHEMA    ← ここも通る必要がある
+# MAGIC         └ テーブル  SELECT      ← 実際に読む権限
+# MAGIC ```
+# MAGIC
+# MAGIC ### 🧑‍🤝‍🧑 隣の人とペアで試してみましょう（おすすめ）
+# MAGIC
+# MAGIC 自分に対しては常に全権限があるため、**GRANT の効果は他人に付与して初めて体感できます**。
+# MAGIC 隣の参加者とペアになり、お互いのメールアドレスを教え合ってください。
+# MAGIC
+# MAGIC 1. **下のセルに相手のメールアドレスを入力**して実行（`PARTNER_EMAIL`）
+# MAGIC 2. 付与前 → 相手はあなたのテーブルを読めません（相手側でエラーを確認）
+# MAGIC 3. 付与後 → 相手が読めるようになります
+# MAGIC 4. `REVOKE` で戻すと、また読めなくなります
+# MAGIC
+# MAGIC > ペアが組めない場合は `PARTNER_EMAIL = ""` のまま実行してください。
+# MAGIC > 付与文の**組み立てと `SHOW GRANTS` での確認**だけを行い、手順は理解できます。
 
 # COMMAND ----------
 
-def _grant(stmt: str):
+# ★ ペアの相手のメールアドレスを入れてください（1人で進める場合は空のまま）
+PARTNER_EMAIL = ""
+
+# COMMAND ----------
+
+def run_sql(stmt: str, label: str = ""):
+    """実行して結果を分かりやすく表示する（失敗しても止めない）"""
     try:
-        spark.sql(stmt); print("✓", stmt)
+        spark.sql(stmt)
+        print(f"✓ {label or stmt}")
     except Exception as e:
-        print("· skip:", str(e).splitlines()[0][:90])
+        print(f"⚠️ {label or stmt}\n   → {str(e).splitlines()[0][:150]}")
 
-try:
-    have = {r["name"] for r in spark.sql("SHOW GROUPS").collect()}
-except Exception:
-    have = set()
 
-if "data_governance_admins" in have:
-    _grant(f"GRANT USE CATALOG ON CATALOG {catalog} TO `data_governance_admins`")
-    _grant(f"GRANT USE SCHEMA ON SCHEMA {FQ} TO `data_governance_admins`")
-    _grant(f"GRANT SELECT ON SCHEMA {FQ} TO `data_governance_admins`")
+if PARTNER_EMAIL:
+    print(f"■ {PARTNER_EMAIL} に customer テーブルの参照権限を付与します\n")
+    # 階層をたどって付与（上位の USE が無いと下位は見えない）
+    run_sql(f"GRANT USE CATALOG ON CATALOG {catalog} TO `{PARTNER_EMAIL}`",
+            f"USE CATALOG on {catalog}")
+    run_sql(f"GRANT USE SCHEMA ON SCHEMA {FQ} TO `{PARTNER_EMAIL}`",
+            f"USE SCHEMA on {FQ}")
+    run_sql(f"GRANT SELECT ON TABLE {FQ}.customer TO `{PARTNER_EMAIL}`",
+            f"SELECT on {FQ}.customer")
+    print("\n→ 相手に、次の SQL を実行してもらってください:")
+    print(f"   SELECT count(*) FROM {FQ}.customer;")
+    print("   （このセルの実行前はエラー、実行後は成功するはずです）")
 else:
-    print("· デモ用グループが見つかりません。上の SQL 例で手順を確認してください（ABAC ポリシーはグループが無くても作成・適用でき、効果も観察できます）。")
+    print("PARTNER_EMAIL が空なので、実際の付与はスキップしました。")
+    print("実行される SQL は次の 3 文です（階層を上から順にたどります）:\n")
+    print(f"  GRANT USE CATALOG ON CATALOG {catalog} TO `<相手>`;")
+    print(f"  GRANT USE SCHEMA  ON SCHEMA  {FQ} TO `<相手>`;")
+    print(f"  GRANT SELECT      ON TABLE   {FQ}.customer TO `<相手>`;")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 2. 管理タグ（Governed Tag）の作成
+# MAGIC ### 付与された権限を確認する
 # MAGIC
-# MAGIC ABAC の起点は **管理タグ**。ここでは 2 種類を作成します。
-# MAGIC - `uc_handson_pii` … 機微情報の列に付ける（値: `confidential` / `restricted`）→ 列マスクの対象
-# MAGIC - `uc_handson_segment` … 行フィルタの判定に使う列に付ける（値: `segment_key`）→ 行フィルタの対象
+# MAGIC `SHOW GRANTS` で「誰に何を許可しているか」が一覧できます。
+
+# COMMAND ----------
+
+print("■ customer テーブルの権限")
+display(spark.sql(f"SHOW GRANTS ON TABLE {FQ}.customer"))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### スキーマ単位でまとめて付与する（継承の効果）
 # MAGIC
-# MAGIC > `CREATE GOVERNED TAG` は `IF NOT EXISTS` 非対応 / `DESCRIPTION` と `VALUES` を使用（`COMMENT`/`ALLOWED VALUES` ではない）。
+# MAGIC テーブルを 1 つずつ付与するのは大変です。**スキーマに付与すると配下すべてに効きます**。
+
+# COMMAND ----------
+
+if PARTNER_EMAIL:
+    run_sql(f"GRANT SELECT ON SCHEMA {FQ} TO `{PARTNER_EMAIL}`",
+            f"SELECT on SCHEMA {FQ}（配下の全テーブルに継承）")
+    print("\n→ 相手は orders / lineitem など、他のテーブルも読めるようになります")
+else:
+    print(f"  GRANT SELECT ON SCHEMA {FQ} TO `<相手>`;  ← 配下の全テーブルに継承")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### REVOKE で権限を取り消す
+# MAGIC
+# MAGIC 付けた権限は `REVOKE` で外せます。**取り消すと相手は読めなくなります**。
+
+# COMMAND ----------
+
+if PARTNER_EMAIL:
+    run_sql(f"REVOKE SELECT ON SCHEMA {FQ} FROM `{PARTNER_EMAIL}`",
+            f"REVOKE SELECT on SCHEMA {FQ}")
+    run_sql(f"REVOKE SELECT ON TABLE {FQ}.customer FROM `{PARTNER_EMAIL}`",
+            f"REVOKE SELECT on {FQ}.customer")
+    print("\n→ 相手が再度 SELECT すると、今度は権限エラーになります")
+    print("  （USE CATALOG / USE SCHEMA は残していますが、SELECT が無いので読めません）")
+else:
+    print(f"  REVOKE SELECT ON SCHEMA {FQ} FROM `<相手>`;")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### 🖱️ UI でも同じことができます（Catalog Explorer）
+# MAGIC
+# MAGIC 1. **Catalog** → 自分のスキーマ → `customer` テーブル → **Permissions** タブ
+# MAGIC 2. **Grant** ボタンをクリック
+# MAGIC 3. **Principals** で相手（ユーザー / グループ）を選択
+# MAGIC 4. **Privileges** で `SELECT` にチェック → **Grant**
+# MAGIC 5. 一覧に表示された行の **Revoke** で取り消せます
+# MAGIC
+# MAGIC スキーマ・カタログの **Permissions** タブでも同様に付与でき、**下位に継承**されます。
+# MAGIC
+# MAGIC 💡 **RBAC の限界**: この方式は明示的で分かりやすい反面、
+# MAGIC 「機微な列だけ隠したい」「テーブルが 100 個に増えた」という場面では
+# MAGIC **付与作業が爆発**します。そこで次の **ABAC** が役立ちます。
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC # 【ABAC パート】
+# MAGIC
+# MAGIC ここからは **ABAC（属性ベースアクセス制御）** です。
+# MAGIC **タグという「属性」を付け、タグに対してルールを 1 本張る**ことで、
+# MAGIC 対象が増えても書き換え不要な制御を実現します。
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 3. 管理タグ（Governed Tag）の設計と作成
+# MAGIC
+# MAGIC ABAC の起点は **管理タグ（Governed Tag）** です。ここで **3 種類**を設計します。
+# MAGIC このハンズオンで使うタグはこれだけで、**分類にもアクセス制御にも同じタグを使い回します**。
+# MAGIC
+# MAGIC | タグキー | 許可値 | 用途 |
+# MAGIC |---|---|---|
+# MAGIC | `uc_handson_sensitivity` | `confidential` / `internal` / `public` | **列マスクの対象**を決める（機微度） |
+# MAGIC | `uc_handson_domain` | `procurement` / `sales` | **行フィルタの判定列**＋業務ドメインでの分類 |
+# MAGIC | `uc_handson_layer` | `master` / `transaction` / `analytics` | データ層での分類（`05` の探索で使用） |
+# MAGIC
+# MAGIC 💡 **タグは一度設計すれば多目的に使えます**。「機微な列」という属性を付けておけば、
+# MAGIC 列マスク（`6`）にも、検索・棚卸し（`05`）にも、監査の観点整理にも使えます。
+# MAGIC
+# MAGIC > `CREATE GOVERNED TAG` は `IF NOT EXISTS` 非対応 / `DESCRIPTION` と `VALUES` を使用
+# MAGIC > （`COMMENT` / `ALLOWED VALUES` ではありません）。
 # MAGIC
 # MAGIC 🧑‍🤝‍🧑 **ハンズオンでの注意**: 管理タグは**アカウント全体で共有**されるリソースです。
 # MAGIC そのため、**最初に実行した人がタグを作成し、2人目以降は「既に存在します」と表示されます**（正常な動作）。
-# MAGIC タグは全員で共通のものを使い、**ポリシーは各自のスキーマに張る**ので、お互いの作業には影響しません。
-# MAGIC 下のセルはどちらの場合も成功扱いになるので、そのまま次へ進んでください。
+# MAGIC タグ定義は全員で共通のものを使い、**付与先とポリシーは各自のスキーマ**なので、お互いの作業には影響しません。
 
 # COMMAND ----------
 
 # 管理タグはアカウント共有リソース。2人目以降は ALREADY_EXISTS になるが、
 # 既存タグをそのまま使えばよいので握りつぶして続行する。
-for stmt in [
-    "CREATE GOVERNED TAG uc_handson_pii "
-    "DESCRIPTION 'ABAC demo: PII / confidential column marker' "
-    "VALUES ('confidential','restricted')",
-    "CREATE GOVERNED TAG uc_handson_segment "
-    "DESCRIPTION 'ABAC demo: row-level segment control column marker' "
-    "VALUES ('segment_key')",
-]:
+governed_tags = [
+    "CREATE GOVERNED TAG uc_handson_sensitivity "
+    "DESCRIPTION 'Hands-on: column sensitivity level (drives column masking)' "
+    "VALUES ('confidential','internal','public')",
+    "CREATE GOVERNED TAG uc_handson_domain "
+    "DESCRIPTION 'Hands-on: business domain of the asset (also drives row filtering)' "
+    "VALUES ('procurement','sales')",
+    "CREATE GOVERNED TAG uc_handson_layer "
+    "DESCRIPTION 'Hands-on: data layer' "
+    "VALUES ('master','transaction','analytics')",
+]
+for stmt in governed_tags:
     tag_name = stmt.split()[3]
     try:
         spark.sql(stmt)
@@ -137,7 +276,7 @@ for stmt in [
         if "ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
             print(f"✓ 管理タグは既に存在します（他の参加者が作成済み）: {tag_name} — そのまま使えます")
         else:
-            print(f"⚠️ {tag_name}: {str(e).splitlines()[0][:100]}")
+            print(f"⚠️ {tag_name}: {str(e).splitlines()[0][:120]}")
 
 # COMMAND ----------
 
@@ -150,10 +289,10 @@ for stmt in [
 # MAGIC 2. 上部の **Govern**（盾アイコン）をクリック
 # MAGIC 3. ドロップダウンから **Governed Tags** を選択
 # MAGIC 4. **Create governed tag** をクリック
-# MAGIC 5. **Tag key**（例 `uc_handson_pii`）、任意で **Description**、そして **Allowed values** を入力
+# MAGIC 5. **Tag key**、任意で **Description**、そして **Allowed values** を入力
 # MAGIC 6. **Create** をクリック
 # MAGIC
-# MAGIC → いま作成した `uc_handson_pii` / `uc_handson_segment` がこの一覧に見えるはずです。クリックすると
+# MAGIC → いま作成した 3 つのタグがこの一覧に見えるはずです。クリックすると
 # MAGIC 許可値や、そのタグがどこで使われているか（利用状況）を確認できます。
 # MAGIC
 # MAGIC > 作成できるのは **アカウント管理者とワークスペース管理者**（既定で `CREATE` 権限あり）。
@@ -162,7 +301,7 @@ for stmt in [
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. タグの「許可値」で統制する（Tag Policies）
+# MAGIC ## 4. タグの「許可値」で統制する（Tag Policies）
 # MAGIC
 # MAGIC ここが**組織スケールでガバナンスを効かせる鍵**です。
 # MAGIC 管理タグは単なるラベルではなく、**許可値（Allowed values）を定義できます**。
@@ -174,7 +313,7 @@ for stmt in [
 # MAGIC | 表記ゆれ | `confidential` / `Confidential` / `機密` が混在 | 統一される |
 # MAGIC | ABAC ポリシー | 使えない | **使える** |
 # MAGIC
-# MAGIC `uc_handson_pii` には `confidential` / `restricted` のみ許可しました。
+# MAGIC `uc_handson_sensitivity` には `confidential` / `internal` / `public` のみ許可しました。
 # MAGIC **許可していない値を入れようとすると、実際にエラーになります** — 下のセルで体験してみましょう。
 
 # COMMAND ----------
@@ -183,7 +322,7 @@ for stmt in [
 try:
     spark.sql(
         "ALTER TABLE customer ALTER COLUMN c_acctbal "
-        "SET TAGS ('uc_handson_pii' = 'ちょっと秘密')"
+        "SET TAGS ('uc_handson_sensitivity' = 'ちょっと秘密')"
     )
     print("⚠️ 通ってしまいました（許可値の設定を確認してください）")
 except Exception as e:
@@ -205,39 +344,110 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 4. 列にタグを付与
+# MAGIC ## 5. テーブル・列にタグを付与
 # MAGIC
-# MAGIC `customer` の 2 列にタグを付けます。**この時点ではまだデータは変わりません**（ポリシーを張って初めて効きます）。
-# MAGIC - `c_acctbal`（口座残高＝機微情報） ← `uc_handson_pii = confidential`
-# MAGIC - `c_mktsegment`（市場セグメント） ← `uc_handson_segment = segment_key`
+# MAGIC 定義したタグを実際に付けます。**この時点ではまだデータの見え方は変わりません**
+# MAGIC （タグは「印」であり、ポリシーを張って初めて制御が効きます）。
+# MAGIC
+# MAGIC **テーブルレベル**（業務ドメイン・データ層での分類 → `05` の探索で活用）
+# MAGIC
+# MAGIC | テーブル | domain | layer |
+# MAGIC |---|---|---|
+# MAGIC | `part` / `supplier` | `procurement` | `master` |
+# MAGIC | `customer` | `sales` | `master` |
+# MAGIC | `orders` / `lineitem` | `sales` | `transaction` |
+# MAGIC
+# MAGIC **列レベル**（アクセス制御の対象を指定 → `6` `7` で活用）
+# MAGIC
+# MAGIC | 列 | タグ | 使われ方 |
+# MAGIC |---|---|---|
+# MAGIC | `customer.c_acctbal`（口座残高） | `uc_handson_sensitivity = confidential` | **列マスクの対象**になる |
+# MAGIC | `supplier.s_acctbal`（口座残高） | `uc_handson_sensitivity = confidential` | 同上（ポリシー追加なしで効く） |
+# MAGIC | `customer.c_mktsegment`（市場セグメント） | `uc_handson_domain = sales` | **行フィルタの判定列**になる |
+
+# COMMAND ----------
+
+# テーブルレベルのタグ（分類用）
+table_tags = [
+    "ALTER TABLE part     SET TAGS ('uc_handson_domain' = 'procurement', 'uc_handson_layer' = 'master')",
+    "ALTER TABLE supplier SET TAGS ('uc_handson_domain' = 'procurement', 'uc_handson_layer' = 'master')",
+    "ALTER TABLE customer SET TAGS ('uc_handson_domain' = 'sales',       'uc_handson_layer' = 'master')",
+    "ALTER TABLE orders   SET TAGS ('uc_handson_domain' = 'sales',       'uc_handson_layer' = 'transaction')",
+    "ALTER TABLE lineitem SET TAGS ('uc_handson_domain' = 'sales',       'uc_handson_layer' = 'transaction')",
+]
+for stmt in table_tags:
+    target = stmt.split("SET TAGS")[0].replace("ALTER TABLE", "").strip()
+    try:
+        spark.sql(stmt)
+        print(f"✓ {target}")
+    except Exception as e:
+        msg = str(e)
+        if "not an allowed value for tag policy key" in msg:
+            print(f"⚠️ {target}: 許可値に無い値です →")
+            print("   ", msg[msg.find("Tag value"):].splitlines()[0][:200])
+        else:
+            print(f"· skip: {target}: {msg.splitlines()[0][:110]}")
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC ALTER TABLE customer ALTER COLUMN c_acctbal   SET TAGS ('uc_handson_pii'     = 'confidential');
+# MAGIC -- 列レベル: 機微な列に「機微度」タグを付ける（→ 6 の列マスクの対象になる）
+# MAGIC ALTER TABLE customer ALTER COLUMN c_acctbal SET TAGS ('uc_handson_sensitivity' = 'confidential');
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC ALTER TABLE customer ALTER COLUMN c_mktsegment SET TAGS ('uc_handson_segment' = 'segment_key');
+# MAGIC -- 別テーブルの同種の列にも同じタグ（→ ポリシーを増やさず保護が広がることを 6 で確認）
+# MAGIC ALTER TABLE supplier ALTER COLUMN s_acctbal SET TAGS ('uc_handson_sensitivity' = 'confidential');
 
 # COMMAND ----------
 
-# 付与されたタグを確認
+# MAGIC %sql
+# MAGIC -- 列レベル: 行フィルタの判定に使う列（→ 7 の行フィルタで参照される）
+# MAGIC ALTER TABLE customer ALTER COLUMN c_mktsegment SET TAGS ('uc_handson_domain' = 'sales');
+
+# COMMAND ----------
+
+# 付与されたタグを確認（テーブル・列の両方）
+print("■ テーブルレベルのタグ")
 display(spark.sql(f"""
-  SELECT column_name, tag_name, tag_value
+  SELECT table_name, tag_name, tag_value
+  FROM system.information_schema.table_tags
+  WHERE catalog_name = '{catalog}' AND schema_name = '{schema}'
+  ORDER BY table_name, tag_name
+"""))
+
+# COMMAND ----------
+
+print("■ 列レベルのタグ")
+display(spark.sql(f"""
+  SELECT table_name, column_name, tag_name, tag_value
   FROM system.information_schema.column_tags
-  WHERE catalog_name = '{catalog}' AND schema_name = '{schema}' AND table_name = 'customer'
-    AND tag_name IN ('uc_handson_pii','uc_handson_segment')
-  ORDER BY column_name
+  WHERE catalog_name = '{catalog}' AND schema_name = '{schema}'
+  ORDER BY table_name, column_name
 """))
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5. タグ駆動の列マスク（ABAC COLUMN MASK ポリシー）
+# MAGIC ### 🖱️ UI でタグを付ける（管理タグは選択式になります）
 # MAGIC
-# MAGIC マスク関数を定義し、**`uc_handson_pii = confidential` タグを持つ列すべて**にポリシーを1本張ります。
+# MAGIC 1. `orders` テーブルの **Overview** タブ右側 **Tags** の **＋ Add tags**（既にある場合は ✏️）
+# MAGIC 2. **Key** のドロップダウンを開く → **Governed** セクションに 🔒 付きで
+# MAGIC    `uc_handson_domain` / `uc_handson_layer` / `uc_handson_sensitivity` が並びます
+# MAGIC 3. キーを選ぶと **Value も許可値から選択**できます（自由入力ではありません）
+# MAGIC 4. **Add** → **Save**
+# MAGIC 5. 列のタグは、列一覧の右端 **⋮ → Edit tags** から同様に付与
+# MAGIC
+# MAGIC > 💡 これが管理タグの利点です。**選択式なので表記ゆれが起きません**。
+# MAGIC > 通常タグ（`CREATE GOVERNED TAG` していないキー）は **Other** セクションに出ます。
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 6. タグ駆動の列マスク（ABAC COLUMN MASK ポリシー）
+# MAGIC
+# MAGIC マスク関数を定義し、**`uc_handson_sensitivity = confidential` タグを持つ列すべて**にポリシーを1本張ります。
 # MAGIC `MATCH COLUMNS` がタグ条件、`ON COLUMN` がマッチした列を指します。
 # MAGIC 管理者（`admins` / `data_governance_admins`）は実値、それ以外は `NULL` にマスクされます。
 
@@ -245,7 +455,7 @@ display(spark.sql(f"""
 
 # MAGIC %sql
 # MAGIC -- マスク関数（管理者は実値、それ以外は NULL）
-# MAGIC CREATE OR REPLACE FUNCTION mask_pii_num(v DECIMAL(18,2))
+# MAGIC CREATE OR REPLACE FUNCTION mask_confidential_value(v DECIMAL(18,2))
 # MAGIC RETURN CASE
 # MAGIC   WHEN is_account_group_member('admins')
 # MAGIC     OR is_account_group_member('data_governance_admins') THEN v
@@ -254,19 +464,19 @@ display(spark.sql(f"""
 
 # COMMAND ----------
 
-# スキーマ配下で「uc_handson_pii=confidential タグの付いた列」に自動でマスクを適用
+# スキーマ配下で「uc_handson_sensitivity=confidential タグの付いた列」に自動でマスクを適用
 # ※ ON SCHEMA は修飾名を直書き（IDENTIFIER 不可）。f-string で FQ を埋め込む。
 spark.sql(f"""
-  CREATE OR REPLACE POLICY mask_pii_columns
+  CREATE OR REPLACE POLICY mask_confidential_columns
   ON SCHEMA {FQ}
-  COMMENT 'Mask any column tagged uc_handson_pii=confidential for non-admins'
-  COLUMN MASK mask_pii_num
+  COMMENT 'Mask any column tagged uc_handson_sensitivity=confidential for non-admins'
+  COLUMN MASK mask_confidential_value
   TO `account users`
   FOR TABLES
-  MATCH COLUMNS has_tag_value('uc_handson_pii', 'confidential') AS c
+  MATCH COLUMNS has_tag_value('uc_handson_sensitivity', 'confidential') AS c
   ON COLUMN c
 """)
-print("✓ policy mask_pii_columns created")
+print("✓ policy mask_confidential_columns created")
 
 # COMMAND ----------
 
@@ -278,7 +488,7 @@ print("✓ policy mask_pii_columns created")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC 💡 **ABAC の威力**: 同じタグ `uc_handson_pii=confidential` を別テーブルの列（例 `supplier.s_acctbal`）に
+# MAGIC 💡 **ABAC の威力**: 同じタグ `uc_handson_sensitivity=confidential` を別テーブルの列（例 `supplier.s_acctbal`）に
 # MAGIC 付けると、**新しいポリシーを書かずに**その列も自動的にマスクされます。試しに下を実行して確認できます
 # MAGIC （後片付けで戻します）。
 
@@ -286,7 +496,7 @@ print("✓ policy mask_pii_columns created")
 
 # MAGIC %sql
 # MAGIC -- （任意）supplier の残高列にも同じタグ → 同一ポリシーが自動適用される
-# MAGIC ALTER TABLE supplier ALTER COLUMN s_acctbal SET TAGS ('uc_handson_pii' = 'confidential');
+# MAGIC ALTER TABLE supplier ALTER COLUMN s_acctbal SET TAGS ('uc_handson_sensitivity' = 'confidential');
 
 # COMMAND ----------
 
@@ -297,17 +507,17 @@ print("✓ policy mask_pii_columns created")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 6. タグ駆動の行フィルタ（ABAC ROW FILTER ポリシー）
+# MAGIC ## 7. タグ駆動の行フィルタ（ABAC ROW FILTER ポリシー）
 # MAGIC
 # MAGIC 「営業は担当する市場セグメントの顧客のみ閲覧」を **行フィルタ関数 + タグ駆動ポリシー** で実現します。
-# MAGIC `uc_handson_segment` タグの付いた列（＝ `c_mktsegment`）をフィルタ関数の引数に渡します。
+# MAGIC `uc_handson_domain` タグの付いた列（＝ `c_mktsegment`）をフィルタ関数の引数に渡します。
 # MAGIC 管理者は全件、営業は所属グループのセグメントのみ、どちらでもなければ 0 件になります。
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC -- 行フィルタ関数: 管理者は全件、それ以外はセグメント別グループに応じて限定
-# MAGIC CREATE OR REPLACE FUNCTION row_filter_by_segment(segment STRING)
+# MAGIC CREATE OR REPLACE FUNCTION row_filter_by_market_segment(segment STRING)
 # MAGIC RETURN
 # MAGIC   is_account_group_member('admins')
 # MAGIC   OR is_account_group_member('data_governance_admins')
@@ -317,18 +527,18 @@ print("✓ policy mask_pii_columns created")
 
 # COMMAND ----------
 
-# スキーマ配下で「uc_handson_segment タグの付いた列」を引数に行フィルタを自動適用
+# スキーマ配下で「uc_handson_domain タグの付いた列」を引数に行フィルタを自動適用
 spark.sql(f"""
-  CREATE OR REPLACE POLICY row_filter_segment
+  CREATE OR REPLACE POLICY filter_rows_by_domain
   ON SCHEMA {FQ}
-  COMMENT 'Row filter on columns tagged uc_handson_segment'
-  ROW FILTER row_filter_by_segment
+  COMMENT 'Row filter on columns tagged uc_handson_domain'
+  ROW FILTER row_filter_by_market_segment
   TO `account users`
   FOR TABLES
-  MATCH COLUMNS has_tag_value('uc_handson_segment', 'segment_key') AS seg
+  MATCH COLUMNS has_tag_value('uc_handson_domain', 'sales') AS seg
   USING COLUMNS (seg)
 """)
-print("✓ policy row_filter_segment created")
+print("✓ policy filter_rows_by_domain created")
 
 # COMMAND ----------
 
@@ -340,7 +550,7 @@ print("✓ policy row_filter_segment created")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 7. 適用中のポリシー一覧
+# MAGIC ## 8. 適用中のポリシー一覧
 # MAGIC
 # MAGIC スキーマに張られている ABAC ポリシーを確認します。
 
@@ -351,35 +561,27 @@ display(spark.sql(f"SHOW POLICIES ON SCHEMA {FQ}"))
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 8. 後片付け（⚠️ 必ず実行してから 04 へ進む）
+# MAGIC ## 9. 後片付け（⚠️ 必ず実行してから 04 へ進む）
 # MAGIC
 # MAGIC **重要**: 行フィルタ/列マスクポリシーを張ったまま次の `04_lineage` に進むと、実行者が対象グループに
 # MAGIC 属していない場合 `customer` が **0 行 / c_acctbal が NULL** に見え、
 # MAGIC **04 の JOIN 結果（order_analysis_summary）が空になります**。
 # MAGIC ここでポリシーと列タグを外し、素の状態（750,000 行・実値）に戻します。
-# MAGIC （マスク関数 `mask_pii_num` / フィルタ関数 `row_filter_by_segment`、管理タグ定義は残るので再適用はいつでも可能）
+# MAGIC （マスク関数 `mask_confidential_value` / フィルタ関数 `row_filter_by_market_segment`、管理タグ定義は残るので再適用はいつでも可能）
 
 # COMMAND ----------
 
 # DROP POLICY は IF EXISTS 非対応のため try/except でラップ
-for pol in ["mask_pii_columns", "row_filter_segment"]:
+for pol in ["mask_confidential_columns", "filter_rows_by_domain"]:
     try:
         spark.sql(f"DROP POLICY {pol} ON SCHEMA {FQ}")
         print("✓ dropped policy:", pol)
     except Exception as e:
         print("· skip:", str(e).splitlines()[0][:90])
 
-# 付与した列タグを解除（任意で追加した supplier.s_acctbal も戻す）
-for tbl, col, tag in [
-    ("customer", "c_acctbal",   "uc_handson_pii"),
-    ("customer", "c_mktsegment", "uc_handson_segment"),
-    ("supplier", "s_acctbal",   "uc_handson_pii"),
-]:
-    try:
-        spark.sql(f"ALTER TABLE {tbl} ALTER COLUMN {col} UNSET TAGS ('{tag}')")
-        print(f"✓ untagged: {tbl}.{col}")
-    except Exception as e:
-        print("· skip:", str(e).splitlines()[0][:90])
+print()
+print("※ タグ自体は外しません（ポリシーを外せば制御は解除されます）。")
+print("  タグは 05_discovery の「タグで探す」でそのまま使うので残しておきます。")
 
 # COMMAND ----------
 
@@ -401,7 +603,7 @@ for tbl, col, tag in [
 # MAGIC
 # MAGIC **B. 管理タグを UI で列に付ける**
 # MAGIC 1. `customer` テーブル → **Columns**（または Overview）タブ → 対象列（`c_acctbal`）の行
-# MAGIC 2. 右端 **⋮ → Edit tags**（またはタグ列の＋）→ 管理タグ `uc_handson_pii` を選び 値 `confidential` → 保存
+# MAGIC 2. 右端 **⋮ → Edit tags**（またはタグ列の＋）→ 管理タグ `uc_handson_sensitivity` を選び 値 `confidential` → 保存
 # MAGIC 3. 管理タグ自体の作成/許可値の管理は **Catalog Explorer 左下の「Tags」**（または Account 管理）から
 # MAGIC
 # MAGIC **C. ABAC ポリシーを UI で作る（本ノートブック冒頭のスクショの画面）**
@@ -410,8 +612,8 @@ for tbl, col, tag in [
 # MAGIC 3. **プリンシパルとスコープ**:
 # MAGIC    - 適用対象（TO）に `account users`、除外（EXCEPT）に管理者グループ、を指定できる
 # MAGIC    - **範囲（ON）**: カタログ / スキーマ / テーブルを選択（ここでスキーマを選ぶと配下に自動適用）
-# MAGIC 4. **タグ条件（MATCH COLUMNS）**: `uc_handson_pii = confidential` のようにタグで対象列を絞り込む
-# MAGIC 5. 参照する関数（`mask_pii_num` / `row_filter_by_segment`）を選択 → **ポリシーを作成**
+# MAGIC 4. **タグ条件（MATCH COLUMNS）**: `uc_handson_sensitivity = confidential` のようにタグで対象列を絞り込む
+# MAGIC 5. 参照する関数（`mask_confidential_value` / `row_filter_by_market_segment`）を選択 → **ポリシーを作成**
 # MAGIC    （右ペインの「コードを表示」で、UI 操作と等価な SQL がリアルタイムに確認できる）
 # MAGIC
 # MAGIC **D. 効果の確認方法**
