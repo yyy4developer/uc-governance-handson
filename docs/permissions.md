@@ -31,15 +31,19 @@
 **権限はすべて「参加者グループ」単位で付与します。** 個人ごとの付与より確実で、
 終了後はグループを削除すれば全権限がまとめて無効化されます。
 
-1. **Account Console でグループを作成**（→ 参加者を追加 → **ワークスペースに割り当て**）
+1. **グループを用意**（手動、5分）
+   - **Account Console** → User management → Groups → **Add group** → 参加者を Members に追加
+   - ⚠️ **このワークスペースに追加**: ワークスペースの **⚙ Settings** →
+     **Identity and access** → **Groups** → **Add group** → 作ったグループを選択
 2. **`notebooks/admin/00_prepare_environment` を実行** — §1〜§2 の内容
    （権限付与・管理タグ作成・ASSIGN 付与）がまとめて実施されます
 
 ⚠️ **1 だけは手動**です。アカウントレベルのグループ操作は notebook から実行できません
 （notebook はワークスペースの資格情報で動くため）。
 
-⚠️ **ワークスペースへの割り当てを忘れないでください**。グループが存在しても、
-割り当てが無いと SQL から `Principal ... does not exist` になります。
+⚠️ **アカウントに作る + ワークスペースに追加の両方が必要です。**
+片方だけでは SQL から `Principal ... does not exist` になります
+（ワークスペースにだけ作るとローカルグループになり、UC では使えません）。
 
 片付けは **`notebooks/admin/01_cleanup_environment`**（参加者の `99_cleanup` のあと）。
 

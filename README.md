@@ -86,18 +86,21 @@ AWS Glue（Catalog Federation）と Amazon Redshift（Query Federation）を Uni
 
 **手順は 2 ステップだけです。**
 
-**ステップ1: グループを作る**（Account Console、5分）
+**ステップ1: グループを作る**（5分）
 
-1. Account Console → **User management** → **Groups** → **Add group**
+1. **Account Console** → **User management** → **Groups** → **Add group**
    （例: `uc_handson_participants`）
 2. **Members** に参加者を追加
-3. ⚠️ **Workspaces** → 対象ワークスペース → **Permissions** → グループに **User** を付与
+3. ⚠️ **このワークスペースに追加**: ワークスペースの **⚙ Settings** →
+   **Identity and access** → **Groups** → **Add group** → 作ったグループを選択
 
-> ⚠️ ステップ1-3（ワークスペース割り当て）を忘れると、権限付与が
-> `Principal ... does not exist` で失敗します。グループは存在するのに認識されない、
-> という分かりにくい失敗なので注意してください。
+> ⚠️ ステップ3 を忘れると、権限付与が `Principal ... does not exist` で失敗します。
+> グループは存在するのに認識されない、という分かりにくい失敗なので注意してください。
 >
-> アカウントレベルのグループ操作は notebook から実行できないため、ここだけ手動です。
+> **1（アカウントに作る）と 3（ワークスペースに追加）は両方必要です。**
+> 3 だけ行うとワークスペースローカルのグループになり、UC の権限付与に使えません。
+>
+> アカウントレベルの操作は notebook から実行できないため、ここだけ手動です。
 
 **ステップ2: 準備 notebook を実行**
 

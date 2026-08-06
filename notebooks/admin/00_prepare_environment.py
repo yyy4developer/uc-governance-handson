@@ -133,9 +133,9 @@ print(f"{'⚠️ ' + str(len(warn)) + ' 件の確認事項があります' if wa
 # MAGIC | **Account Console** | ✅ 使える | ✗ |
 # MAGIC | Databricks CLI（account profile） | ✅ 使える | ✗ |
 # MAGIC
-# MAGIC ### 手順（Account Console、5 分程度）
+# MAGIC ### 手順（5 分程度）
 # MAGIC
-# MAGIC **A. グループを作成して参加者を追加**
+# MAGIC **A. アカウントレベルでグループを作成し、参加者を追加**
 # MAGIC
 # MAGIC 1. [Account Console](https://accounts.cloud.databricks.com) にログイン
 # MAGIC    （Azure: `https://accounts.azuredatabricks.net`）
@@ -143,29 +143,46 @@ print(f"{'⚠️ ' + str(len(warn)) + ' 件の確認事項があります' if wa
 # MAGIC 3. グループ名に下のセルで表示される名前を入力 → **Confirm**
 # MAGIC 4. 作成したグループを開き → **Members** → **Add members** → 参加者を選択
 # MAGIC
-# MAGIC **B. ⚠️ ワークスペースに割り当て（これを忘れると権限付与が失敗します）**
+# MAGIC **B. ⚠️ このワークスペースに追加する（これを忘れると権限付与が失敗します）**
+# MAGIC
+# MAGIC アカウントに作っただけでは、**このワークスペースの SQL から認識されません**。
+# MAGIC 次のいずれかで追加してください。
+# MAGIC
+# MAGIC *方法1: ワークスペースの設定画面から（かんたん・推奨）*
+# MAGIC
+# MAGIC 1. このワークスペースの右上 **⚙ Settings** → **Identity and access**
+# MAGIC 2. **Groups** の **Manage**（または **Add group**）
+# MAGIC 3. **A** で作ったグループ名を検索して選択 → **Add**
+# MAGIC
+# MAGIC *方法2: Account Console から*
 # MAGIC
 # MAGIC 1. Account Console → **Workspaces** → 対象ワークスペースを開く
-# MAGIC 2. **Permissions** タブ → **Add permissions**
-# MAGIC 3. 作成したグループを選択 → **User** 権限を付与 → **Save**
+# MAGIC 2. グループを検索して選択し、ワークスペースの entitlement を付けて **Save**
+# MAGIC    （画面構成はアカウントの設定により異なります。見つからない場合は方法1 を使ってください）
 # MAGIC
-# MAGIC > 割り当てないと、SQL から `Principal ... does not exist` になります
-# MAGIC > （グループは存在するのに認識されない、という分かりにくい失敗をします）。
-# MAGIC > 割り当て直後は反映に**数十秒**かかります。
+# MAGIC > ⚠️ **B を実施しないと** SQL から `Principal ... does not exist` になります。
+# MAGIC > グループは存在するのに認識されない、という分かりにくい失敗をします。
+# MAGIC > 追加直後は反映に**数十秒**かかります。
 # MAGIC
 # MAGIC ### CLI で行う場合（管理者の PC から。上記 A + B と同じこと）
 # MAGIC
 # MAGIC ```bash
-# MAGIC # アカウントプロファイルで認証（初回のみ）
+# MAGIC # 1) アカウントプロファイルで認証（初回のみ）
 # MAGIC databricks auth login --host <account-console-url> --account-id <account-id>
 # MAGIC
-# MAGIC # グループ作成
-# MAGIC databricks account groups create --display-name uc_handson_participants -p <account-profile>
+# MAGIC # 2) アカウントにグループを作成
+# MAGIC databricks account groups create --display-name uc_handson_participants \
+# MAGIC   -p <account-profile>
 # MAGIC
-# MAGIC # ワークスペースに割り当て（<group-id> は作成時の出力、<ws-id> は下のセルで表示）
-# MAGIC databricks api put /api/2.0/preview/permissionassignments/principals/<group-id> \
-# MAGIC   -p <account-profile> --json '{"permissions":["USER"]}'
+# MAGIC # 3) このワークスペースに追加（同名で POST する。ワークスペースのプロファイルで実行）
+# MAGIC databricks api post /api/2.0/preview/scim/v2/Groups -p <workspace-profile> \
+# MAGIC   --json '{"displayName":"uc_handson_participants",
+# MAGIC            "schemas":["urn:ietf:params:scim:schemas:core:2.0:Group"]}'
 # MAGIC ```
+# MAGIC
+# MAGIC > 💡 3) は「アカウントのグループをこのワークスペースから使えるようにする」操作です
+# MAGIC > （方法1 の UI と同じことをしています）。**2) を省いて 3) だけ実行すると
+# MAGIC > ワークスペースローカルのグループになり、UC の権限付与に使えません。**
 
 # COMMAND ----------
 
