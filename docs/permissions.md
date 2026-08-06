@@ -1,7 +1,10 @@
 # ハンズオン実施に必要な権限リスト
 
 参加者が `notebooks/core/00`〜`08` を最後まで実行するために必要な権限をまとめたものです。
-**ワークスペース管理者が事前に付与**してください。
+**ワークスペース環境の管理者（account admin / workspace admin）が事前に準備**してください。
+
+> 📌 **役割分担**: 環境の準備・権限付与・管理タグの作成は**管理者**が行います。
+> 講師は進行と説明を担当し、環境操作は行いません（クライアント環境にアクセスできない前提）。
 
 - 付与は **SQL Editor** から実行できます（一部は Catalog Explorer の UI 操作）
 - 反映に**数分**かかることがあります。**当日ではなく前日までに**済ませてください
@@ -47,7 +50,7 @@ GRANT SELECT     ON SCHEMA system.access TO `account users`;
 `user_identity.email = current_user()` で自分の分に絞っていますが、権限としては全体が見えます。
 
 本番ワークスペースで実施する場合は、この付与が組織のポリシーに反しないか確認してください。
-避けたい場合は **07 を講師のデモに切り替える**のが安全です。
+避けたい場合は **07 をスキップし、講師が画面共有で説明する**のが安全です。
 
 ### `system` スキーマが有効化されていない場合
 
@@ -64,18 +67,41 @@ GRANT SELECT     ON SCHEMA system.access TO `account users`;
 
 | 権限 | 何のために | 既定で持つ人 |
 |---|---|---|
-| 管理タグの **CREATE**（アカウントレベル） | `CREATE GOVERNED TAG` を実行する | アカウント管理者・**ワークスペース管理者** |
-| 管理タグの **ASSIGN** | 作った管理タグをテーブル/列に付与する | 同上 |
+| **CREATE** | `CREATE GOVERNED TAG` でタグを作る | アカウント管理者・**ワークスペース管理者** |
+| **MANAGE** | タグの編集・削除・権限付与 | アカウント管理者／**自分が作ったタグには作成者も自動で付く** |
+| **ASSIGN** | タグをテーブル・列に**付与する** | **アカウント管理者のみ**（← 参加者に付与が必要） |
+
+つまり **参加者に必要なのは `ASSIGN`** です。作成は管理者が行うため `CREATE` は不要です。
 
 ### 対応方法（どちらか選ぶ）
 
-**方法A: 講師が事前に管理タグを作っておく（推奨）**
+**方法A: 管理者が事前に管理タグを作成する（推奨）**
 
-講師が先に `02` と `03` を一度実行して、必要な管理タグを作成しておきます。
-参加者の実行時は「既に存在します」と表示され、そのまま進めます（notebook がこのケースを想定済み）。
-そのうえで参加者に **ASSIGN 権限**を付与します。
+管理タグは**アカウント全体で 1 つの定義を共有**するリソースです。
+個人ごとに作るものではないため、**管理者が事前に 3 種を作成し、参加者には `ASSIGN` を付与**します。
+参加者が `03` を実行すると「既に存在します」と表示され、そのまま進みます
+（notebook はこの状態を正常として扱います）。
 
-作成される管理タグ:
+作成する管理タグ（SQL Editor で実行）:
+
+```sql
+CREATE GOVERNED TAG uc_handson_sensitivity
+  DESCRIPTION 'Hands-on: column sensitivity level (drives column masking)'
+  VALUES ('confidential','internal','public');
+
+CREATE GOVERNED TAG uc_handson_domain
+  DESCRIPTION 'Hands-on: business domain of the asset (also drives row filtering)'
+  VALUES ('procurement','sales');
+
+CREATE GOVERNED TAG uc_handson_layer
+  DESCRIPTION 'Hands-on: data layer'
+  VALUES ('master','transaction','analytics');
+```
+
+> `CREATE GOVERNED TAG` は `IF NOT EXISTS` 非対応です。既に存在する場合はエラーになりますが、
+> その場合はそのまま使えるので無視してください。
+
+一覧:
 
 | タグキー | 許可値 | 使う場所 |
 |---|---|---|
@@ -94,9 +120,10 @@ ASSIGN 権限の付与（Catalog Explorer から）:
 
 **方法B: 参加者をワークスペース管理者にする**
 
-検証用の sandbox なら、参加者を `admins` グループに入れるのが最も簡単です
-（管理タグの CREATE / ASSIGN が既定で付きます）。
-本番ワークスペースでは避けてください。
+検証用の sandbox なら、参加者を `admins` グループに入れる方法もあります
+（`CREATE` が既定で付き、自分が作ったタグには `MANAGE` も付きます）。
+ただし `ASSIGN` は既定に含まれないため、**方法A（管理者が作成 + ASSIGN 付与）が確実**です。
+本番ワークスペースでは管理者権限の付与は避けてください。
 
 ---
 
@@ -121,16 +148,16 @@ ASSIGN 権限の付与（Catalog Explorer から）:
 
 ## 4. 事前確認チェックリスト（前日までに）
 
-講師が各項目を実際に確認してください。
+管理者と講師で分担して確認してください。
 
 - [ ] 参加者 全員がワークスペースにログインできる
 - [ ] `GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <catalog> TO \`account users\`` 実行済み
 - [ ] `GRANT CREATE SHARE / CREATE RECIPIENT ON METASTORE TO \`account users\`` 実行済み
 - [ ] `system.access` の `USE SCHEMA` + `SELECT` 付与済み（または 07 をデモに切替と決定）
-- [ ] 管理タグ 3 種が作成済み、かつ参加者に **ASSIGN** 付与済み（または参加者を admins に）
+- [ ] **管理タグ 3 種を管理者が作成済み**、かつ参加者に **ASSIGN** 付与済み
 - [ ] `_config.py` の `DEFAULT_CATALOG` が対象カタログ名になっている
 - [ ] SQL Warehouse が起動する（参加者数に対してサイズが十分か）
-- [ ] 講師が参加者と同じ権限のテストアカウントで `00`〜`08` を通し実行できた
+- [ ] **管理者が、参加者と同じ権限のテストアカウントで `00`〜`08` を通し実行できた**
 
 最後の項目が最も確実な検証です。**管理者アカウントでの成功は、参加者での成功を意味しません**
 （管理タグ・Share・監査ログはいずれも管理者だけが既定で持つ権限に依存します）。

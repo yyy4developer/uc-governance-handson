@@ -2,9 +2,9 @@
 # MAGIC %md
 # MAGIC # 03 — アクセス制御（RBAC → タグ → ABAC）
 # MAGIC
-# MAGIC > 🔑 **必要な権限**: 自分のスキーマの owner ＋ **管理タグの `CREATE` と `ASSIGN`**
-# MAGIC > （管理タグはアカウントレベルの権限。既定ではワークスペース管理者のみ持ちます。
-# MAGIC > 参加者が一般ユーザーの場合、講師が事前にタグを作成し `ASSIGN` を付与してください）
+# MAGIC > 🔑 **必要な権限**: 自分のスキーマの owner ＋ **管理タグの `ASSIGN`**
+# MAGIC > （管理タグは**管理者が事前に作成**済みの前提です。タグ作成のセルは
+# MAGIC > 「既に存在します」と表示されるのが正常で、そのまま次へ進めます）
 # MAGIC
 # MAGIC Unity Catalog のアクセス制御を、**2 つの方式**で体験します。
 # MAGIC
@@ -23,7 +23,7 @@
 # MAGIC |---|---|---|
 # MAGIC | 1 | 自分の権限を確認する（owner とは何か） | RBAC |
 # MAGIC | 2 | **GRANT / REVOKE を体験**（階層と継承） | RBAC |
-# MAGIC | 3 | **管理タグ（Governed Tag）の設計と作成** | 準備 |
+# MAGIC | 3 | **管理タグ（Governed Tag）の確認** — 全員で共有 | 準備 |
 # MAGIC | 4 | **Tag Policies — 許可値による統制** | 準備 |
 # MAGIC | 5 | テーブル・列へのタグ付与 | 準備 |
 # MAGIC | 6 | **タグ駆動の列マスク**（ABAC COLUMN MASK） | ABAC |
@@ -231,10 +231,10 @@ else:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 3. 管理タグ（Governed Tag）の設計と作成
+# MAGIC ## 3. 管理タグ（Governed Tag）— 全員で共有して使います
 # MAGIC
-# MAGIC ABAC の起点は **管理タグ（Governed Tag）** です。ここで **3 種類**を設計します。
-# MAGIC このハンズオンで使うタグはこれだけで、**分類にもアクセス制御にも同じタグを使い回します**。
+# MAGIC ABAC の起点は **管理タグ（Governed Tag）** です。このハンズオンでは **3 種類**を使い、
+# MAGIC **分類にもアクセス制御にも同じタグを使い回します**。
 # MAGIC
 # MAGIC | タグキー | 許可値 | 用途 |
 # MAGIC |---|---|---|
@@ -242,20 +242,31 @@ else:
 # MAGIC | `uc_handson_domain` | `procurement` / `sales` | **行フィルタの判定列**＋業務ドメインでの分類 |
 # MAGIC | `uc_handson_layer` | `master` / `transaction` / `analytics` | データ層での分類（`05` の探索で使用） |
 # MAGIC
-# MAGIC 💡 **タグは一度設計すれば多目的に使えます**。「機微な列」という属性を付けておけば、
-# MAGIC 列マスク（`6`）にも、検索・棚卸し（`05`）にも、監査の観点整理にも使えます。
+# MAGIC ### 🧑‍🤝‍🧑 管理タグは組織で共有する資産です
 # MAGIC
+# MAGIC 管理タグは**アカウント全体で 1 つ**の定義を持ちます。個人ごとに作るものではなく、
+# MAGIC **組織で「このタグを使う」と決めて全員で共有する**のが本来の使い方です。
+# MAGIC （まさにそれが、表記ゆれを防ぎ、タグを起点に一括で保護できる理由です）
+# MAGIC
+# MAGIC そのため本ハンズオンでは、上記 3 種を**管理者が事前に作成**しています。
+# MAGIC 下のセルは**確認のために実行**します。
+# MAGIC
+# MAGIC ```
+# MAGIC   ✓ 管理タグは既に存在します（管理者が作成済み）: uc_handson_sensitivity — そのまま使えます
+# MAGIC ```
+# MAGIC
+# MAGIC ↑ このように表示されるのが**正常**です。参加者全員が同じタグを使い、
+# MAGIC **付与先（自分のテーブル・列）とポリシーは各自のスキーマ**なので、お互いの作業には影響しません。
+# MAGIC
+# MAGIC > 💡 タグ定義が共有され、付与とポリシーは個別 — この分離が ABAC の設計思想です。
+# MAGIC >
 # MAGIC > `CREATE GOVERNED TAG` は `IF NOT EXISTS` 非対応 / `DESCRIPTION` と `VALUES` を使用
 # MAGIC > （`COMMENT` / `ALLOWED VALUES` ではありません）。
-# MAGIC
-# MAGIC 🧑‍🤝‍🧑 **ハンズオンでの注意**: 管理タグは**アカウント全体で共有**されるリソースです。
-# MAGIC そのため、**最初に実行した人がタグを作成し、2人目以降は「既に存在します」と表示されます**（正常な動作）。
-# MAGIC タグ定義は全員で共通のものを使い、**付与先とポリシーは各自のスキーマ**なので、お互いの作業には影響しません。
 
 # COMMAND ----------
 
-# 管理タグはアカウント共有リソース。2人目以降は ALREADY_EXISTS になるが、
-# 既存タグをそのまま使えばよいので握りつぶして続行する。
+# 管理タグはアカウント共有リソース。管理者が事前に作成しているため、通常は
+# ALREADY_EXISTS になる（それが正常）。未作成の環境でも動くよう作成も試みる。
 governed_tags = [
     "CREATE GOVERNED TAG uc_handson_sensitivity "
     "DESCRIPTION 'Hands-on: column sensitivity level (drives column masking)' "
@@ -271,32 +282,34 @@ for stmt in governed_tags:
     tag_name = stmt.split()[3]
     try:
         spark.sql(stmt)
-        print(f"✓ 管理タグを作成しました: {tag_name}")
+        print(f"✓ 管理タグを作成しました: {tag_name}（この環境では未作成でした）")
     except Exception as e:
         if "ALREADY_EXISTS" in str(e) or "already exists" in str(e).lower():
-            print(f"✓ 管理タグは既に存在します（他の参加者が作成済み）: {tag_name} — そのまま使えます")
+            print(f"✓ 管理タグは既に存在します（管理者が作成済み）: {tag_name} — そのまま使えます")
         else:
             print(f"⚠️ {tag_name}: {str(e).splitlines()[0][:120]}")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### 🖱️ UI で管理タグを作る／確認する（Catalog Explorer）
+# MAGIC ### 🖱️ UI で管理タグを確認する（Catalog Explorer）
 # MAGIC
-# MAGIC 上のセルは SQL で作りましたが、**管理タグは UI から作成・管理できます**。
+# MAGIC 共有されている管理タグを画面で見てみましょう。
 # MAGIC
 # MAGIC 1. 左メニュー **Catalog** を開く
 # MAGIC 2. 上部の **Govern**（盾アイコン）をクリック
 # MAGIC 3. ドロップダウンから **Governed Tags** を選択
-# MAGIC 4. **Create governed tag** をクリック
-# MAGIC 5. **Tag key**、任意で **Description**、そして **Allowed values** を入力
-# MAGIC 6. **Create** をクリック
+# MAGIC 4. `uc_handson_sensitivity` などをクリック
+# MAGIC    → **許可値**と、**どこで使われているか（利用状況）** が確認できます
 # MAGIC
-# MAGIC → いま作成した 3 つのタグがこの一覧に見えるはずです。クリックすると
-# MAGIC 許可値や、そのタグがどこで使われているか（利用状況）を確認できます。
+# MAGIC 組織でタグを管理する立場なら、この画面が起点になります。
+# MAGIC 新しく作る場合は **Create governed tag** から
+# MAGIC （**Tag key** / 任意の **Description** / **Allowed values** を入力 → **Create**）。
 # MAGIC
-# MAGIC > 作成できるのは **アカウント管理者とワークスペース管理者**（既定で `CREATE` 権限あり）。
-# MAGIC > 管理タグは**アカウント全体**に効くので、組織横断のタグ統制はここで一元管理します。
+# MAGIC > 🔑 **作成できるのは**: アカウント管理者、ワークスペース管理者、
+# MAGIC > または `CREATE` 権限を付与されたユーザー。
+# MAGIC > 管理タグは**アカウント全体**に効くため、組織横断のタグ統制をここで一元管理します。
+# MAGIC > タグを**付与する**（`ASSIGN`）権限は別で、管理者から付与されます。
 
 # COMMAND ----------
 
