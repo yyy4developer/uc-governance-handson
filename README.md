@@ -96,13 +96,27 @@ DEFAULT_CATALOG = "<your_catalog>"
 ワークスペースの **SQL Editor** を開き、次を実行します。
 
 ```sql
+-- カタログ利用と自分のスキーマ作成（00〜05 で必要）
 GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <your_catalog> TO `account users`;
+
+-- Delta Sharing（06 で必要。既定では付いていません）
+GRANT CREATE SHARE     ON METASTORE TO `account users`;
+GRANT CREATE RECIPIENT ON METASTORE TO `account users`;
+
+-- 監査ログ（07 で必要。既定では管理者のみ）
+GRANT USE SCHEMA ON SCHEMA system.access TO `account users`;
+GRANT SELECT     ON SCHEMA system.access TO `account users`;
 ```
 
 > ⚠️ Unity Catalog の principal は `account users` です。ワークスペースローカルの
 > `users` グループを指定すると `PRINCIPAL_DOES_NOT_EXIST` になります。
 
-参加者はこれで自分のスキーマを作れるようになります。
+**さらに管理タグ（Governed Tag）の権限が必要です**（02 と 03 で使用）。
+既定ではワークスペース管理者しか作成・付与できないため、講師が事前にタグを作り、
+参加者に **ASSIGN** 権限を付与するか、参加者を管理者グループに入れます。
+
+📋 **詳細と事前確認チェックリストは [docs/permissions.md](./docs/permissions.md) にまとめています。
+実施前に必ず一読してください。**
 
 ### 3. ハンズオンの進め方（参加者）
 
