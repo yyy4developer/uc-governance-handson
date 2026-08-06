@@ -28,9 +28,20 @@
 
 ## ⭐ 一括実行する方法（推奨）
 
-`notebooks/admin/00_prepare_environment` を実行すると、
-このドキュメントの §1〜§2 の内容（権限付与・管理タグ作成・ASSIGN 付与）が**まとめて実施**されます。
-前提チェックと最終確認も含まれるため、まずこちらをお試しください。
+**権限はすべて「参加者グループ」単位で付与します。** 個人ごとの付与より確実で、
+終了後はグループを削除すれば全権限がまとめて無効化されます。
+
+1. **Account Console でグループを作成**（→ 参加者を追加 → **ワークスペースに割り当て**）
+2. **`notebooks/admin/00_prepare_environment` を実行** — §1〜§2 の内容
+   （権限付与・管理タグ作成・ASSIGN 付与）がまとめて実施されます
+
+⚠️ **1 だけは手動**です。アカウントレベルのグループ操作は notebook から実行できません
+（notebook はワークスペースの資格情報で動くため）。
+
+⚠️ **ワークスペースへの割り当てを忘れないでください**。グループが存在しても、
+割り当てが無いと SQL から `Principal ... does not exist` になります。
+
+片付けは **`notebooks/admin/01_cleanup_environment`**（参加者の `99_cleanup` のあと）。
 
 以下は、その内容の詳細と、手動で実施する場合の手順です。
 
@@ -124,14 +135,17 @@ ASSIGN 権限の付与（SQL）:
 ```sql
 -- ⚠️ 管理タグはアカウントレベルのリソースです。
 --    account users やワークスペースローカルの users / admins は使えません。
---    参加者を個別に指定するか、Account Console で作成したグループを指定します。
-GRANT ASSIGN ON GOVERNED TAG uc_handson_sensitivity TO `taro.yamada@example.com`;
-GRANT ASSIGN ON GOVERNED TAG uc_handson_domain      TO `taro.yamada@example.com`;
-GRANT ASSIGN ON GOVERNED TAG uc_handson_layer       TO `taro.yamada@example.com`;
+--    Account Console で作成し、ワークスペースに割り当てたグループを指定します。
+GRANT ASSIGN ON GOVERNED TAG uc_handson_sensitivity TO `uc_handson_participants`;
+GRANT ASSIGN ON GOVERNED TAG uc_handson_domain      TO `uc_handson_participants`;
+GRANT ASSIGN ON GOVERNED TAG uc_handson_layer       TO `uc_handson_participants`;
 
 -- 付与状況の確認
 SHOW GRANTS ON GOVERNED TAG uc_handson_sensitivity;
 ```
+
+> 💡 §1 のカタログ / メタストア / `system.access` の付与も、同じグループを指定できます。
+> **すべてグループ単位に揃えると、片付けはグループ削除だけで済みます。**
 
 ASSIGN 権限の付与（Catalog Explorer から。まとめて付与したい場合はこちらが楽）:
 

@@ -79,22 +79,46 @@ AWS Glue（Catalog Federation）と Amazon Redshift（Query Federation）を Uni
 
 ## セットアップ（すべて画面操作）
 
-### 0. ⭐ 管理者向け: 準備 notebook を実行（これ1本で完了）
+### 0. ⭐ 管理者向け: 準備 notebook を実行
 
-**`notebooks/admin/00_prepare_environment`** を開いて実行すると、以下がまとめて実施されます。
+**権限はすべて「参加者グループ」単位で付与します**（個人ごとの付与より確実で、
+終了後はグループを削除すれば権限もまとめて無効化できます）。
+
+**手順は 2 ステップだけです。**
+
+**ステップ1: グループを作る**（Account Console、5分）
+
+1. Account Console → **User management** → **Groups** → **Add group**
+   （例: `uc_handson_participants`）
+2. **Members** に参加者を追加
+3. ⚠️ **Workspaces** → 対象ワークスペース → **Permissions** → グループに **User** を付与
+
+> ⚠️ ステップ1-3（ワークスペース割り当て）を忘れると、権限付与が
+> `Principal ... does not exist` で失敗します。グループは存在するのに認識されない、
+> という分かりにくい失敗なので注意してください。
+>
+> アカウントレベルのグループ操作は notebook から実行できないため、ここだけ手動です。
+
+**ステップ2: 準備 notebook を実行**
+
+**`notebooks/admin/00_prepare_environment`** を開き、冒頭で `TARGET_CATALOG` /
+`PARTICIPANT_EMAILS` / `GROUP_NAME` を設定して **▶ Run all**。
 
 | # | 内容 |
 |---|---|
 | 1 | 前提チェック（カタログ / `samples` / `system.access`） |
-| 2 | 参加者への権限付与（カタログ / Delta Sharing / 監査ログ） |
-| 3 | 管理タグ 3 種の作成 |
-| 4 | タグの **ASSIGN** 権限付与（⚠️ これが無いと 03 が止まります） |
+| 2 | グループの準備状況を確認（未作成なら手順を表示） |
+| 3 | **グループへの権限付与**（カタログ / Delta Sharing / 監査ログ） |
+| 4 | **管理タグ 3 種の作成** ＋ **ASSIGN 付与**（⚠️ これが無いと 03 が止まります） |
 | 5 | 最終確認と未完了項目の表示 |
 
-冒頭の設定セルで `TARGET_CATALOG` と参加者（`TAG_ASSIGNEES`）を指定するだけです。
-**アカウント管理者**で実行してください（`system.access` の付与に必要）。
+**アカウント管理者**で実行してください（`system.access` と管理タグの付与に必要）。
+冪等なので何度でも実行できます。
 
 > ⚠️ 権限とタグの反映に数分かかるため、**前日までに**実行してください。
+
+**終了後の片付け**: **`notebooks/admin/01_cleanup_environment`** を実行
+（参加者が各自 `notebooks/core/99_cleanup` を実行したあと）。
 
 以下は、その notebook が行う内容の詳細です（手動で行う場合の参考）。
 
@@ -226,7 +250,7 @@ cd terraform && terraform destroy
 ```
 uc-governance-handson/
 ├── HANDSON.md                # ⭐ 参加者向けの進行ガイド
-├── notebooks/admin/          # ⭐ 管理者向けの事前準備（権限付与・管理タグ作成）
+├── notebooks/admin/          # ⭐ 管理者向け（00_prepare / 01_cleanup）
 ├── notebooks/core/           # ⭐ ハンズオン本体（_config, 00_setup 〜 08_genie, 99_cleanup）
 ├── notebooks/federation/     # 参考実装（ハンズオン対象外）
 ├── terraform/                # 参考実装の環境構築（ハンズオン対象外）
