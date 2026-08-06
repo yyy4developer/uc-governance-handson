@@ -15,7 +15,7 @@
 # MAGIC | マスク/フィルタ関数 | `mask_confidential_value` など | 自分のスキーマ |
 # MAGIC | Delta Share / Recipient | `order_analysis_share_<自分>` など | メタストア（自分のもののみ） |
 # MAGIC | **スキーマごと削除** | テーブル・ビュー・Volume すべて | 自分のスキーマ |
-# MAGIC | 他人への GRANT | ペア演習で付与した権限 | 自分のスキーマ |
+# MAGIC | 他者への GRANT | `03` で参加者グループに付与した権限 | 自分のスキーマ |
 # MAGIC
 # MAGIC ## ⚠️ 削除されないもの（意図的）
 # MAGIC
@@ -135,7 +135,8 @@ def step(stmt: str, label: str):
         msg = str(e).splitlines()[0]
         # 「存在しない」系は正常（既に消えている / そもそも作っていない）
         if any(k in msg for k in ("NOT_FOUND", "does not exist", "DOES_NOT_EXIST",
-                                  "SCHEMA_NOT_FOUND", "TABLE_OR_VIEW_NOT_FOUND")):
+                                  "SCHEMA_NOT_FOUND", "TABLE_OR_VIEW_NOT_FOUND",
+                                  "PRINCIPAL_DOES_NOT_EXIST")):
             print(f"  · スキップ（存在しません）: {label}")
         else:
             print(f"  ⚠️ {label}\n      → {msg[:150]}")
@@ -153,18 +154,22 @@ else:
     for pol in ["mask_confidential_columns", "filter_rows_by_domain"]:
         step(f"DROP POLICY {pol} ON SCHEMA {FQ}", f"ポリシー {pol}")
 
-    # --- 3-2. 他人に付与した権限を取り消す ---
-    print("\n[2/5] 他ユーザーへの GRANT を取り消し")
+    # --- 3-2. 他者に付与した権限を取り消す（03 の RBAC 演習で付与したもの） ---
+    print("\n[2/5] 他者への GRANT を取り消し")
     try:
         grants = spark.sql(f"SHOW GRANTS ON SCHEMA {FQ}").collect()
         me = spark.sql("SELECT current_user()").collect()[0][0]
-        others = {g[0] for g in grants if g[0] and g[0] != me and "admin" not in str(g[0]).lower()}
-        if others:
-            for principal in others:
-                step(f"REVOKE ALL PRIVILEGES ON SCHEMA {FQ} FROM `{principal}`",
-                     f"{principal} からの権限")
-        else:
-            print("  · 他ユーザーへの付与はありません")
+        # このスキーマに直接付与されている principal のみ（カタログ由来の行は除く）
+        others = {
+            g[0] for g in grants
+            if g[0] and g[0] != me
+            and str(g[3]).endswith(schema)          # 対象がこのスキーマの付与だけ
+            and "admin" not in str(g[0]).lower()
+        }
+        others.add(PARTICIPANT_GROUP)               # 03 で付与したグループは明示的に対象
+        for principal in sorted(others):
+            step(f"REVOKE ALL PRIVILEGES ON SCHEMA {FQ} FROM `{principal}`",
+                 f"{principal} からの権限")
     except Exception as e:
         print(f"  · 確認できませんでした: {str(e).splitlines()[0][:100]}")
 

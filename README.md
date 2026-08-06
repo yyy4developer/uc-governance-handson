@@ -105,7 +105,11 @@ AWS Glue（Catalog Federation）と Amazon Redshift（Query Federation）を Uni
 **ステップ2: 準備 notebook を実行**
 
 **`notebooks/admin/00_prepare_environment`** を開き、冒頭で `TARGET_CATALOG` /
-`PARTICIPANT_EMAILS` / `GROUP_NAME` を設定して **▶ Run all**。
+`GROUP_NAME` を設定して **▶ Run all**。
+
+> 💡 **参加者のメールアドレスはどこにも書きません。** メンバーの追加は Account Console 側で行い、
+> 権限（カタログ / メタストア / 監査ログ / 管理タグ ASSIGN）はすべてグループに付与します。
+> 参加者が `03` で実行する GRANT / REVOKE も同じグループを対象にします。
 
 | # | 内容 |
 |---|---|
@@ -139,23 +143,28 @@ DEFAULT_CATALOG = "<your_catalog>"
 
 ### 2. 参加者に権限を付与する（管理者）
 
-ワークスペースの **SQL Editor** を開き、次を実行します。
+**権限はすべて参加者グループ単位で付与します**（`<group>` は Account Console で作成した
+グループ名、既定 `uc_handson_participants`）。ワークスペースの **SQL Editor** で次を実行します。
 
 ```sql
 -- カタログ利用と自分のスキーマ作成（00〜05 で必要）
-GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <your_catalog> TO `account users`;
+GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <your_catalog> TO `<group>`;
 
 -- Delta Sharing（06 で必要。既定では付いていません）
-GRANT CREATE SHARE     ON METASTORE TO `account users`;
-GRANT CREATE RECIPIENT ON METASTORE TO `account users`;
+GRANT CREATE SHARE     ON METASTORE TO `<group>`;
+GRANT CREATE RECIPIENT ON METASTORE TO `<group>`;
 
 -- 監査ログ（07 で必要。既定では管理者のみ）
-GRANT USE SCHEMA ON SCHEMA system.access TO `account users`;
-GRANT SELECT     ON SCHEMA system.access TO `account users`;
+GRANT USE SCHEMA ON SCHEMA system.access TO `<group>`;
+GRANT SELECT     ON SCHEMA system.access TO `<group>`;
 ```
 
-> ⚠️ Unity Catalog の principal は `account users` です。ワークスペースローカルの
-> `users` グループを指定すると `PRINCIPAL_DOES_NOT_EXIST` になります。
+> ⚠️ グループは **Account Console で作成**し、**さらにこのワークスペースに追加**してください
+> （Settings → Identity and access → Groups）。SQL の `CREATE GROUP` で作ると
+> ワークスペースローカルになり、`PRINCIPAL_DOES_NOT_EXIST` で失敗します。
+>
+> ⚠️ `notebooks/core/_config.py` の `PARTICIPANT_GROUP` を同じグループ名にしてください
+> （`03` の RBAC 演習がこのグループを対象に GRANT / REVOKE します）。
 
 **さらに管理タグ（Governed Tag）の権限が必要です**（03 で使用）。
 管理タグは**アカウント全体で 1 つの定義を共有**するリソースです。

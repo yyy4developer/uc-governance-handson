@@ -107,23 +107,23 @@ display(spark.sql(f"SHOW GRANTS ON SCHEMA {FQ}"))
 # MAGIC         └ テーブル  SELECT      ← 実際に読む権限
 # MAGIC ```
 # MAGIC
-# MAGIC ### 🧑‍🤝‍🧑 隣の人とペアで試してみましょう（おすすめ）
+# MAGIC ### 🧑‍🤝‍🧑 参加者グループに付与して、隣の人と確認しましょう
 # MAGIC
 # MAGIC 自分に対しては常に全権限があるため、**GRANT の効果は他人に付与して初めて体感できます**。
-# MAGIC 隣の参加者とペアになり、お互いのメールアドレスを教え合ってください。
+# MAGIC ここでは**参加者グループ（`PARTICIPANT_GROUP`）に付与**します。
+# MAGIC 個人のメールアドレスを1件ずつ指定するのではなく、**グループ単位で権限を管理**するのが
+# MAGIC 実運用のやり方です（異動・入退社でも付け替えが不要）。
 # MAGIC
-# MAGIC 1. **下のセルに相手のメールアドレスを入力**して実行（`PARTNER_EMAIL`）
-# MAGIC 2. 付与前 → 相手はあなたのテーブルを読めません（相手側でエラーを確認）
-# MAGIC 3. 付与後 → 相手が読めるようになります
-# MAGIC 4. `REVOKE` で戻すと、また読めなくなります
+# MAGIC 1. **付与前**: 隣の人にあなたのスキーマを読んでもらう → **エラー**になります
+# MAGIC 2. **付与**: 下のセルを実行（グループに `USE SCHEMA` + `SELECT` を付与）
+# MAGIC 3. **付与後**: もう一度読んでもらう → **読めるようになります**
+# MAGIC 4. **REVOKE**: 取り消すと、また読めなくなります
 # MAGIC
-# MAGIC > ペアが組めない場合は `PARTNER_EMAIL = ""` のまま実行してください。
-# MAGIC > 付与文の**組み立てと `SHOW GRANTS` での確認**だけを行い、手順は理解できます。
-
-# COMMAND ----------
-
-# ★ ペアの相手のメールアドレスを入れてください（1人で進める場合は空のまま）
-PARTNER_EMAIL = ""
+# MAGIC > 💡 グループには**あなた自身も含まれています**。「自分にも付与されている」状態ですが、
+# MAGIC > あなたは元々 owner なので見え方は変わりません。**変化が起きるのは他の参加者側**です。
+# MAGIC >
+# MAGIC > 💡 `USE CATALOG` は**管理者が既にグループに付与済み**なので、ここでは不要です
+# MAGIC > （このハンズオンで参加者がカタログレベルの権限を触ることはありません）。
 
 # COMMAND ----------
 
@@ -136,24 +136,30 @@ def run_sql(stmt: str, label: str = ""):
         print(f"⚠️ {label or stmt}\n   → {str(e).splitlines()[0][:150]}")
 
 
-if PARTNER_EMAIL:
-    print(f"■ {PARTNER_EMAIL} に customer テーブルの参照権限を付与します\n")
-    # 階層をたどって付与（上位の USE が無いと下位は見えない）
-    run_sql(f"GRANT USE CATALOG ON CATALOG {catalog} TO `{PARTNER_EMAIL}`",
-            f"USE CATALOG on {catalog}")
-    run_sql(f"GRANT USE SCHEMA ON SCHEMA {FQ} TO `{PARTNER_EMAIL}`",
-            f"USE SCHEMA on {FQ}")
-    run_sql(f"GRANT SELECT ON TABLE {FQ}.customer TO `{PARTNER_EMAIL}`",
-            f"SELECT on {FQ}.customer")
-    print("\n→ 相手に、次の SQL を実行してもらってください:")
-    print(f"   SELECT count(*) FROM {FQ}.customer;")
-    print("   （このセルの実行前はエラー、実行後は成功するはずです）")
-else:
-    print("PARTNER_EMAIL が空なので、実際の付与はスキップしました。")
-    print("実行される SQL は次の 3 文です（階層を上から順にたどります）:\n")
-    print(f"  GRANT USE CATALOG ON CATALOG {catalog} TO `<相手>`;")
-    print(f"  GRANT USE SCHEMA  ON SCHEMA  {FQ} TO `<相手>`;")
-    print(f"  GRANT SELECT      ON TABLE   {FQ}.customer TO `<相手>`;")
+G = f"`{PARTICIPANT_GROUP}`"
+
+# グループが見えているか先に確認（見えない場合は付与が失敗するので理由を出す）
+try:
+    if not spark.sql(f"SHOW GROUPS LIKE '{PARTICIPANT_GROUP}'").collect():
+        print(f"⚠️ グループ '{PARTICIPANT_GROUP}' がこのワークスペースから見えません。")
+        print("   管理者に次を確認してください:")
+        print("     ・Account Console でグループを作成したか")
+        print("     ・そのグループを このワークスペース に追加したか")
+        print("       （Settings → Identity and access → Groups → Add group）")
+        print("   → 以下の付与は失敗しますが、実行される SQL は出力されるので流れは追えます。\n")
+except Exception:
+    pass
+
+print(f"■ 参加者グループ {PARTICIPANT_GROUP} に customer の参照権限を付与します\n")
+
+# 階層をたどって付与（上位の USE が無いと下位は見えない）
+# USE CATALOG は管理者がグループに付与済みなので、ここではスキーマから
+run_sql(f"GRANT USE SCHEMA ON SCHEMA {FQ} TO {G}", f"USE SCHEMA on {FQ}")
+run_sql(f"GRANT SELECT ON TABLE {FQ}.customer TO {G}", f"SELECT on {FQ}.customer")
+
+print("\n→ 隣の人に、次の SQL を実行してもらってください:")
+print(f"   SELECT count(*) FROM {FQ}.customer;")
+print("   （このセルの実行前はエラー、実行後は成功するはずです）")
 
 # COMMAND ----------
 
@@ -176,12 +182,10 @@ display(spark.sql(f"SHOW GRANTS ON TABLE {FQ}.customer"))
 
 # COMMAND ----------
 
-if PARTNER_EMAIL:
-    run_sql(f"GRANT SELECT ON SCHEMA {FQ} TO `{PARTNER_EMAIL}`",
-            f"SELECT on SCHEMA {FQ}（配下の全テーブルに継承）")
-    print("\n→ 相手は orders / lineitem など、他のテーブルも読めるようになります")
-else:
-    print(f"  GRANT SELECT ON SCHEMA {FQ} TO `<相手>`;  ← 配下の全テーブルに継承")
+run_sql(f"GRANT SELECT ON SCHEMA {FQ} TO {G}",
+        f"SELECT on SCHEMA {FQ}（配下の全テーブルに継承）")
+print("\n→ 隣の人は orders / lineitem など、他のテーブルも読めるようになります")
+print("  （テーブル単位で付与していないのに読めるのが「継承」です）")
 
 # COMMAND ----------
 
@@ -192,15 +196,14 @@ else:
 
 # COMMAND ----------
 
-if PARTNER_EMAIL:
-    run_sql(f"REVOKE SELECT ON SCHEMA {FQ} FROM `{PARTNER_EMAIL}`",
-            f"REVOKE SELECT on SCHEMA {FQ}")
-    run_sql(f"REVOKE SELECT ON TABLE {FQ}.customer FROM `{PARTNER_EMAIL}`",
-            f"REVOKE SELECT on {FQ}.customer")
-    print("\n→ 相手が再度 SELECT すると、今度は権限エラーになります")
-    print("  （USE CATALOG / USE SCHEMA は残していますが、SELECT が無いので読めません）")
-else:
-    print(f"  REVOKE SELECT ON SCHEMA {FQ} FROM `<相手>`;")
+run_sql(f"REVOKE SELECT ON SCHEMA {FQ} FROM {G}", f"REVOKE SELECT on SCHEMA {FQ}")
+run_sql(f"REVOKE SELECT ON TABLE {FQ}.customer FROM {G}",
+        f"REVOKE SELECT on {FQ}.customer")
+print("\n→ 隣の人が再度 SELECT すると、今度は権限エラーになります")
+print("  （USE SCHEMA は残っていますが、SELECT が無いので読めません）")
+print("\n💡 グループから外すだけでも同じ効果です。")
+print("   実運用では「権限を1件ずつ REVOKE」ではなく")
+print("   「グループのメンバーシップを変える」ことで制御します。")
 
 # COMMAND ----------
 
@@ -209,11 +212,16 @@ else:
 # MAGIC
 # MAGIC 1. **Catalog** → 自分のスキーマ → `customer` テーブル → **Permissions** タブ
 # MAGIC 2. **Grant** ボタンをクリック
-# MAGIC 3. **Principals** で相手（ユーザー / グループ）を選択
+# MAGIC 3. **Principals** で**グループ**を選択（個人ユーザーも選べますが、グループ推奨）
 # MAGIC 4. **Privileges** で `SELECT` にチェック → **Grant**
 # MAGIC 5. 一覧に表示された行の **Revoke** で取り消せます
 # MAGIC
 # MAGIC スキーマ・カタログの **Permissions** タブでも同様に付与でき、**下位に継承**されます。
+# MAGIC
+# MAGIC 💡 **なぜグループに付与するのか**: 個人に直接付与すると、異動・入退社のたびに
+# MAGIC すべてのオブジェクトを洗い出して付け替える必要があります。グループに付与しておけば、
+# MAGIC **メンバーシップを変えるだけ**で権限が切り替わります。
+# MAGIC 「誰が何を見られるか」の棚卸しもグループ単位で追えるようになります。
 # MAGIC
 # MAGIC 💡 **RBAC の限界**: この方式は明示的で分かりやすい反面、
 # MAGIC 「機微な列だけ隠したい」「テーブルが 100 個に増えた」という場面では
@@ -623,7 +631,8 @@ print("  タグは 05_discovery の「タグで探す」でそのまま使うの
 # MAGIC 1. **Catalog** → 対象カタログ/スキーマ → **Policies**（ポリシー）タブ → **Create policy / 新しいポリシー**
 # MAGIC 2. **ポリシーの種類**: 「列マスク」または「行フィルター」を選択
 # MAGIC 3. **プリンシパルとスコープ**:
-# MAGIC    - 適用対象（TO）に `account users`、除外（EXCEPT）に管理者グループ、を指定できる
+# MAGIC    - 適用対象（TO）に `account users`（＝全員に適用）、除外（EXCEPT）に管理者グループ、を指定できる
+# MAGIC      ※ ここでの `TO` は「**ポリシーを適用する対象**」で、権限付与の `GRANT ... TO` とは別物です
 # MAGIC    - **範囲（ON）**: カタログ / スキーマ / テーブルを選択（ここでスキーマを選ぶと配下に自動適用）
 # MAGIC 4. **タグ条件（MATCH COLUMNS）**: `uc_handson_sensitivity = confidential` のようにタグで対象列を絞り込む
 # MAGIC 5. 参照する関数（`mask_confidential_value` / `row_filter_by_market_segment`）を選択 → **ポリシーを作成**

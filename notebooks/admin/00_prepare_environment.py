@@ -26,10 +26,14 @@
 # MAGIC
 # MAGIC ## 使い方
 # MAGIC
-# MAGIC 1. 下の **設定** セルで `TARGET_CATALOG` と `PARTICIPANT_EMAILS` を書き換える
+# MAGIC 1. 下の **設定** セルで `TARGET_CATALOG` と `GROUP_NAME` を確認
 # MAGIC 2. **▶ Run all** で実行 → §2 でグループ未作成なら止まるので、表示された手順で作成
 # MAGIC 3. グループを作ったら**もう一度 ▶ Run all**（冪等なので何度でも実行できます）
 # MAGIC 4. 出力の ✓ / ⚠️ を確認（⚠️ には対処方法が表示されます）
+# MAGIC
+# MAGIC > 💡 **参加者のメールアドレスはこのノートブックに書きません。**
+# MAGIC > メンバーの追加は Account Console 側で行い、権限はすべてグループに対して付与します
+# MAGIC > （このリポジトリに個人情報を残さないためでもあります）。
 # MAGIC
 # MAGIC > ⚠️ **前日までに実行してください**。グループ・権限・タグの反映に**数分**かかることがあります。
 # MAGIC >
@@ -45,16 +49,13 @@
 # ★★★ 1. 対象カタログ名（参加者がスキーマを作るカタログ） ★★★
 TARGET_CATALOG = "main"
 
-# ★★★ 2. 参加者のメールアドレス ★★★
-PARTICIPANT_EMAILS = [
-    # "taro.yamada@example.com",
-    # "hanako.suzuki@example.com",
-]
-
-# ★★★ 3. 作成する参加者グループ名（そのままでも可） ★★★
+# ★★★ 2. 参加者グループ名 ★★★
+#   Account Console で作成したグループ名（§2 参照）。
+#   参加者の追加は Account Console 側で行うため、ここにメールアドレスは書きません。
+#   ⚠️ notebooks/core/_config.py の PARTICIPANT_GROUP と同じ値にしてください
 GROUP_NAME = "uc_handson_participants"
 
-# ★★★ 4. 監査ログ（07）を参加者に実行させるか ★★★
+# ★★★ 3. 監査ログ（07）を参加者に実行させるか ★★★
 #   True  → system.access に SELECT を付与
 #           ⚠️ 参加者はアカウント全体の監査ログを読めるようになります
 #   False → 付与しない（07 は講師が画面共有で説明）
@@ -88,12 +89,10 @@ def check(label: str, fn):
 
 
 me = spark.sql("SELECT current_user()").collect()[0][0]
-emails = [e.strip() for e in PARTICIPANT_EMAILS if e.strip()]
 
 print(f"実行ユーザー  : {me}")
 print(f"対象カタログ  : {TARGET_CATALOG}")
 print(f"参加者グループ: {GROUP_NAME}")
-print(f"参加者        : {len(emails)} 名")
 print()
 
 print("■ 前提チェック")
@@ -108,10 +107,6 @@ check("samples.tpch が読める",
 if GRANT_AUDIT_ACCESS:
     check("system.access.audit が有効",
           lambda: bool(spark.sql("SELECT 1 FROM system.access.audit LIMIT 1").collect()) or True)
-
-if not emails:
-    warn.append("参加者未設定")
-    print("  ⚠️ PARTICIPANT_EMAILS が空です — 上の設定セルに参加者を追加してください")
 
 print()
 print(f"{'⚠️ ' + str(len(warn)) + ' 件の確認事項があります' if warn else '✓ 前提はすべて満たしています'}")
@@ -195,9 +190,6 @@ ws_id = w.get_workspace_id()
 print("=" * 72)
 print(f"  作成するグループ名 : {GROUP_NAME}")
 print(f"  対象ワークスペース : id={ws_id}")
-print(f"  追加する参加者     : {len(emails)} 名")
-for e in emails:
-    print(f"      - {e}")
 print("=" * 72)
 print()
 
@@ -207,15 +199,18 @@ try:
     if rows:
         group_ready = True
         print(f"✓ グループ '{GROUP_NAME}' はワークスペースから認識されています")
-        # メンバーを確認
+        # メンバーを確認（メールアドレスをこのファイルに書かず、実際の登録内容を読み取る）
         try:
-            for e in emails:
-                mine = spark.sql(f"SHOW GROUPS WITH USER `{e}`").collect()
-                names = {r[0] for r in mine}
-                mark = "✓" if GROUP_NAME in names else "⚠️"
-                print(f"  {mark} {e} {'はメンバーです' if GROUP_NAME in names else 'がメンバーに入っていません'}")
-        except Exception as e:
-            print(f"  · メンバー確認をスキップ: {str(e).splitlines()[0][:120]}")
+            found = list(w.groups.list(filter=f'displayName eq "{GROUP_NAME}"'))
+            members = found[0].members if found and found[0].members else []
+            print(f"  メンバー: {len(members)} 名")
+            for m in members:
+                print(f"      - {m.display}")
+            if not members:
+                print("  ⚠️ メンバーが 0 名です — Account Console で参加者を追加してください")
+        except Exception as ex:
+            print(f"  · メンバー一覧を取得できません: {str(ex).splitlines()[0][:120]}")
+            print("    → Account Console → Groups → 対象グループ → Members で確認してください")
     else:
         print(f"⚠️ グループ '{GROUP_NAME}' が見つかりません")
         print()
@@ -412,9 +407,12 @@ if not failed:
     print("=" * 72)
     print(f"""
   作成したもの:
-    ・参加者グループ: {GROUP_NAME}（{len(emails)} 名）
-    ・管理タグ 3 種（ASSIGN をグループに付与）
+    ・管理タグ 3 種（ASSIGN をグループ {GROUP_NAME} に付与）
     ・カタログ / メタストア / 監査ログの権限（すべてグループ単位）
+
+  ⚠️ notebooks/core/_config.py の PARTICIPANT_GROUP が
+     "{GROUP_NAME}" になっているか確認してください
+     （03 の RBAC 演習でこのグループに GRANT します）
 
   参加者に伝えること:
     ・ワークスペース URL

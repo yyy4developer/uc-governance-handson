@@ -10,8 +10,14 @@
 - 反映に**数分**かかることがあります。**当日ではなく前日までに**済ませてください
 - `<catalog>` は `_config.py` の `DEFAULT_CATALOG` に設定したカタログ名に読み替えてください
 
-> ⚠️ Unity Catalog の principal は **`account users`** です。
-> ワークスペースローカルの `users` グループを指定すると `PRINCIPAL_DOES_NOT_EXIST` になります。
+> ⭐ **権限はすべて「参加者グループ」単位で付与します。** 個人のメールアドレスを列挙する方法は
+> 取りません（付け忘れ・片付け漏れが起きるうえ、実運用の作法でもありません）。
+> 本ドキュメントの `<group>` は、Account Console で作成した参加者グループ名
+> （既定 `uc_handson_participants`）に読み替えてください。
+>
+> ⚠️ グループは **Account Console で作成**し、**さらにこのワークスペースに追加**する必要があります。
+> SQL の `CREATE GROUP` で作るとワークスペースローカルになり、UC の権限付与に使えません
+> （`PRINCIPAL_DOES_NOT_EXIST` になります）。
 
 > ⛔ **カタログに `SELECT` / `USE SCHEMA` を付けないでください。**
 > UC の権限はカタログ → スキーマ → テーブルに継承されるため、
@@ -62,18 +68,22 @@
 
 ```sql
 -- ① カタログを使い、自分のスキーマを作れるようにする（00_setup / 01 / 02 / 04 で必要）
-GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <catalog> TO `account users`;
+GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <catalog> TO `<group>`;
 
 -- ② Delta Sharing の共有と受信者を作れるようにする（06_delta_sharing で必要）
 --    ※ メタストアレベルの権限。既定では付いていません
-GRANT CREATE SHARE     ON METASTORE TO `account users`;
-GRANT CREATE RECIPIENT ON METASTORE TO `account users`;
+GRANT CREATE SHARE     ON METASTORE TO `<group>`;
+GRANT CREATE RECIPIENT ON METASTORE TO `<group>`;
 
 -- ③ 監査ログを読めるようにする（07_audit_logs で必要）
 --    ※ 既定ではアカウント管理者・メタストア管理者のみ
-GRANT USE SCHEMA ON SCHEMA system.access TO `account users`;
-GRANT SELECT     ON SCHEMA system.access TO `account users`;
+GRANT USE SCHEMA ON SCHEMA system.access TO `<group>`;
+GRANT SELECT     ON SCHEMA system.access TO `<group>`;
 ```
+
+> 💡 `03` の RBAC 演習で参加者が実行する `GRANT` / `REVOKE` も、この同じグループを対象にします
+> （`notebooks/core/_config.py` の `PARTICIPANT_GROUP`）。付与先が自分のスキーマ配下なので、
+> 参加者は owner として実行できます。
 
 ### ③ の注意（重要）
 
@@ -94,8 +104,8 @@ GRANT SELECT     ON SCHEMA system.access TO `account users`;
 
 ## 2. 管理タグ（Governed Tag）の権限 — ⚠️ 最も注意が必要
 
-`03_access_control` が**管理タグを作成して付与**します。
-必要な権限は 2 種類あり、**既定ではワークスペース管理者しか持っていません**。
+管理タグは**管理者が事前に作成**し、参加者は `03_access_control` で**付与（ASSIGN）だけ**行います。
+関係する権限は 3 種類で、**既定の保有者がそれぞれ違う**点に注意してください。
 
 | 権限 | 何のために | 既定で持つ人 |
 |---|---|---|
@@ -145,11 +155,11 @@ ASSIGN 権限の付与（SQL）:
 
 ```sql
 -- ⚠️ 管理タグはアカウントレベルのリソースです。
---    account users やワークスペースローカルの users / admins は使えません。
---    Account Console で作成し、ワークスペースに割り当てたグループを指定します。
-GRANT ASSIGN ON GOVERNED TAG uc_handson_sensitivity TO `uc_handson_participants`;
-GRANT ASSIGN ON GOVERNED TAG uc_handson_domain      TO `uc_handson_participants`;
-GRANT ASSIGN ON GOVERNED TAG uc_handson_layer       TO `uc_handson_participants`;
+--    `account users` やワークスペースローカルの users / admins は principal として使えません。
+--    Account Console で作成し、ワークスペースに追加したグループを指定します。
+GRANT ASSIGN ON GOVERNED TAG uc_handson_sensitivity TO `<group>`;
+GRANT ASSIGN ON GOVERNED TAG uc_handson_domain      TO `<group>`;
+GRANT ASSIGN ON GOVERNED TAG uc_handson_layer       TO `<group>`;
 
 -- 付与状況の確認
 SHOW GRANTS ON GOVERNED TAG uc_handson_sensitivity;
@@ -163,7 +173,7 @@ ASSIGN 権限の付与（Catalog Explorer から。まとめて付与したい�
 1. **Catalog** → 上部 **Govern**（盾アイコン）→ **Governed Tags**
 2. アカウント全体に付与する場合: **Account Permissions** → **Grant permissions**
    個別タグだけの場合: 対象タグ → **Permissions** → **Grant permissions**
-3. `account users`（または参加者グループ）を選び、**ASSIGN** をチェックして保存
+3. **参加者グループ**を選び、**ASSIGN** をチェックして保存
 
 > 付与にはアカウントレベルまたはタグ個別の **MANAGE** 権限が必要です。反映に 30 秒以上かかります。
 
@@ -183,7 +193,7 @@ ASSIGN 権限の付与（Catalog Explorer から。まとめて付与したい�
 | `00_setup` | スキーマ・Volume 作成、COMMENT | `USE CATALOG` + `CREATE SCHEMA`（自分が作ったスキーマの owner になる） |
 | `01_ingest_data` | `samples.tpch` から CTAS | 上記 + `samples` は権限不要 |
 | `02_catalog_schema` | COMMENT / PK・FK | 上記のみ |
-| `03_access_control` | GRANT / **管理タグ** / **ABAC ポリシー** | 上記 + **管理タグの CREATE と ASSIGN**（§2）+ スキーマ owner（自分のスキーマなので満たす） |
+| `03_access_control` | 参加者グループへの GRANT / **タグ付与** / **ABAC ポリシー** | 上記 + **管理タグの ASSIGN**（§2。CREATE は管理者が実施済みなので不要）+ スキーマ owner（自分のスキーマなので満たす） |
 | `04_lineage` | テーブル・ビュー作成 | スキーマ owner（満たす） |
 | `05_discovery` | 検索・タグ確認・Certify | スキーマ owner（満たす） |
 | `06_delta_sharing` | **Share / Recipient 作成** | **`CREATE SHARE` + `CREATE RECIPIENT` ON METASTORE**（§1-②） |
@@ -200,11 +210,14 @@ ASSIGN 権限の付与（Catalog Explorer から。まとめて付与したい�
 管理者と講師で分担して確認してください。
 
 - [ ] 参加者 全員がワークスペースにログインできる
-- [ ] `GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <catalog> TO \`account users\`` 実行済み
-- [ ] `GRANT CREATE SHARE / CREATE RECIPIENT ON METASTORE TO \`account users\`` 実行済み
-- [ ] `system.access` の `USE SCHEMA` + `SELECT` 付与済み（または 07 をデモに切替と決定）
-- [ ] **管理タグ 3 種を管理者が作成済み**、かつ参加者に **ASSIGN** 付与済み
+- [ ] **参加者グループを Account Console で作成**し、**参加者を Members に追加**した
+- [ ] **そのグループをこのワークスペースに追加**した（Settings → Identity and access → Groups）
+- [ ] `GRANT USE CATALOG, CREATE SCHEMA ON CATALOG <catalog> TO \`<group>\`` 実行済み
+- [ ] `GRANT CREATE SHARE / CREATE RECIPIENT ON METASTORE TO \`<group>\`` 実行済み
+- [ ] `system.access` の `USE SCHEMA` + `SELECT` をグループに付与済み（または 07 をデモに切替と決定）
+- [ ] **管理タグ 3 種を管理者が作成済み**、かつグループに **ASSIGN** 付与済み
 - [ ] `_config.py` の `DEFAULT_CATALOG` が対象カタログ名になっている
+- [ ] **`_config.py` の `PARTICIPANT_GROUP` が作成したグループ名と一致している**
 - [ ] SQL Warehouse が起動する（参加者数に対してサイズが十分か）
 - [ ] **管理者が、参加者と同じ権限のテストアカウントで `00`〜`08` を通し実行できた**
 

@@ -30,6 +30,11 @@ DEFAULT_CATALOG = "catalog_azure_nbiwes"
 SCHEMA_PER_USER = True
 SCHEMA_PREFIX = "uc_handson"
 
+# 参加者グループ名（管理者が Account Console で作成したもの）。
+# 03 の RBAC 演習でこのグループに対して GRANT / REVOKE します。
+# admin/00_prepare_environment.py の GROUP_NAME と同じ値にしてください。
+PARTICIPANT_GROUP = "uc_handson_participants"
+
 # COMMAND ----------
 
 import re
@@ -75,5 +80,6 @@ spark.sql(f"USE SCHEMA {schema}")
 
 print("=" * 60)
 print(f"  あなたの作業スキーマ: {FQ}")
+print(f"  参加者グループ      : {PARTICIPANT_GROUP}")
 print("=" * 60)
 print("※ 以降のノートブックはこのスキーマに対して実行されます")
