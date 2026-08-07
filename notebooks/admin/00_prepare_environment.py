@@ -182,13 +182,26 @@ print(f"{'⚠️ ' + str(len(warn)) + ' 件の確認事項があります' if wa
 # COMMAND ----------
 
 # グループの準備状況を確認する（作成されワークスペースに割り当てられているか）
-from databricks.sdk import WorkspaceClient
+# ※ 表示用のワークスペース ID 取得やメンバー一覧は SDK 経由で失敗することがあるが、
+#   いずれも「確認のための補助情報」なので、失敗してもこの先の権限付与は続行する。
+try:
+    from databricks.sdk import WorkspaceClient
+    w = WorkspaceClient()
+except Exception as e:
+    w = None
+    print("· SDK クライアントを初期化できませんでした（メンバー確認はスキップします）:",
+          str(e).splitlines()[0][:120])
 
-w = WorkspaceClient()
-ws_id = w.get_workspace_id()
+ws_id = "(取得できません)"
+try:
+    if w is not None:
+        ws_id = w.get_workspace_id()
+except Exception:
+    # get_workspace_id は内部で getMe を呼ぶため環境によって失敗するが、表示用なので無視
+    pass
 
 print("=" * 72)
-print(f"  作成するグループ名 : {GROUP_NAME}")
+print(f"  参加者グループ名   : {GROUP_NAME}")
 print(f"  対象ワークスペース : id={ws_id}")
 print("=" * 72)
 print()
@@ -201,6 +214,8 @@ try:
         print(f"✓ グループ '{GROUP_NAME}' はワークスペースから認識されています")
         # メンバーを確認（メールアドレスをこのファイルに書かず、実際の登録内容を読み取る）
         try:
+            if w is None:
+                raise RuntimeError("SDK クライアント未初期化")
             found = list(w.groups.list(filter=f'displayName eq "{GROUP_NAME}"'))
             members = found[0].members if found and found[0].members else []
             print(f"  メンバー: {len(members)} 名")
